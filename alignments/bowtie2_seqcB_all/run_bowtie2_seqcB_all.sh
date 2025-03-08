@@ -6,8 +6,8 @@ conda activate bowtie2_env
 
 # Directories
 INDEX="genetic_data/indexes/bowtie2_index_homo_sapiens/bowtie2_homo_sapiens_index"
-READS="genetic_data/reads/seqcA"
-OUTPUT="genetic_data/alignments/bowtie2_seqcA_all"
+READS="genetic_data/reads/seqcB"
+OUTPUT="genetic_data/alignments/bowtie2_seqcB_all"
 
 # Loop through each subdirectory
 for sample_dir in "$READS"/*/; do
