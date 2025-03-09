@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Activate conda enviroment
+source miniconda3/etc/profile.d/conda.sh
+conda activate sra_tools_env
+
 # Define the base directory for storing data
 BASE_DIR=~/genetic_data/reads/seqcB
 
