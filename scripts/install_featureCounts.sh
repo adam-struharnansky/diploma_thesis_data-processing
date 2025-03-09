@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Create a new conda environment (optional)
+# Create a new conda environment
 conda create -n feature_counts_env -y
 
 # Activate the new environment

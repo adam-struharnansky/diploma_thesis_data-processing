@@ -12,7 +12,6 @@ OUTPUT="genetic_data/alignments/bowtie2_seqcB_all"
 # Loop through each subdirectory
 for sample_dir in "$READS"/*/; do
     # Extract sample name
-    echo "$sample_dir"
     sample_name=$(basename "$sample_dir")
 
     # Define paired-end FASTQ files
