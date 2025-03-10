@@ -2,6 +2,7 @@
 
 # Define variables
 THREADS=4
+MAX_RAM=51539607552  # 48GB in bytes
 GENOME_DIR=~/genetic_data/indexes/star_index_homo_sapiens
 GENOME_FASTA=~/genetic_data/genomes/GRCh37.p13.genome.fa.gz
 ANNOTATION_GTF=~/genetic_data/annotations/gencode.v19.annotation.gtf.gz
@@ -35,6 +36,7 @@ STAR --runThreadN $THREADS \
      --genomeDir $GENOME_DIR \
      --genomeFastaFiles $GENOME_FASTA_UNZIPPED \
      --sjdbGTFfile $ANNOTATION_GTF_UNZIPPED
+     --limitGenomeGenerateRAM $MAX_RAM
 
 # Re-zip files if needed
 rezip_if_needed $GENOME_FASTA
