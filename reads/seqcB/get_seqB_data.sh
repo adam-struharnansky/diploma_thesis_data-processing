@@ -8,7 +8,7 @@ conda activate sra_tools_env
 BASE_DIR=~/genetic_data/reads/seqcB
 
 # Create the SRR list
-echo -e "SRR896743\nSRR896745\nSRR896747\nSRR896749\nSRR896751\nSRR896753\nSRR896755\nSRR896757" > srr_list_b.txt
+echo -e "SRR896743\nSRR896745\nSRR896747\nSRR896749\nSRR896751\nSRR896753\nSRR896755\nSRR896757" > srr_list.txt
 
 # Create the base directory if it doesn't exist
 mkdir -p "$BASE_DIR"
