@@ -35,9 +35,6 @@ conda config --add channels bioconda
 conda config --add channels conda-forge
 conda config --set channel_priority strict
 
-# Enable automatic activation of base
-conda config --set auto_activate_base true
-
 # Verify installation
 echo "Conda installation complete. Checking version..."
 conda --version
@@ -45,5 +42,4 @@ conda --version
 # Cleanup installer
 rm -f Miniconda3.sh
 
-echo "Restarting shell to activate conda"
-exec bash
+echo "Setup complete!"
