@@ -1,0 +1,14 @@
+# Ignore everything
+*
+
+# Don't ignore directories, so we can include .sh files within them
+!*/
+
+# Include only .sh files
+!*.sh
+
+# py
+!*.py
+
+# Don't ignore the .gitignore file itself
+!.gitignore
