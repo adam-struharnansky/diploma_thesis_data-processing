@@ -22,8 +22,10 @@ done < srr_list.txt
 # Step 2: Convert .sra files to FASTQ
 echo "Converting SRA to FASTQ..."
 find "$BASE_DIR" -type f -name "*.sra" | while read FILE; do
-    DIR=$(dirname "$FILE")  # Get the directory name
-    fastq-dump --split-files --gzip -O "$DIR" "$FILE"  # Convert to FASTQ
+    SRR=$(basename "$FILE" .sra)  # Extract SRR number
+    mkdir -p "$BASE_DIR/$SRR"  # Create SRR directory
+    fastq-dump --split-files --gzip -O "$BASE_DIR/$SRR" "$FILE"  # Convert to FASTQ
+    rm "$FILE"  # Remove the original SRA file after conversion
 done
 
 # Step 3: Remove the original SRA files
