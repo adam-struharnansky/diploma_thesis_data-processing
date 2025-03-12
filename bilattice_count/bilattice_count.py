@@ -9,15 +9,26 @@ from collections import defaultdict
 from intervaltree import Interval, IntervalTree
 
 
+class Config:
+    def __init__(self, args):
+        self.t_norm = args.t_norm
+        self.t_norm_param = args.t_norm_param
+
+
 def parse_arguments():
     """Parse and return command-line arguments."""
     # TODO file existance checks
     parser = argparse.ArgumentParser(description="Gene expression counter tool.")
-    parser.add_argument("--annotation_file", type=str, default="../annotations/Mus_musculus.GRCm38.102.gtf", help="Path to the annotation file (GTF format).")
-    parser.add_argument("--mappings_file", type=str, default="../mappings/star/all_bias/S3_sorted_by_name.bam", help="Path to the mappings file (BAM format).")
-    parser.add_argument("--output_file", type=str, default="my_output_star_drastic", help="Name of the output file.")
+    parser.add_argument("--annotation_file", type=str, default="genetic_data/annotations/Mus_musculus.GRCm38.102.gtf", help="Path to the annotation file (GTF format).")
+    parser.add_argument("--mappings_file", type=str, default="genetic_data/mappings/star/all_bias/S3_sorted_by_name.bam", help="Path to the mappings file (BAM format).")
+    parser.add_argument("--output_file", type=str, default="genetic_data/outputs", help="Name of the output file.")
     parser.add_argument("--investigated_genes", type=str, default=None, help="File with investigated genes. Default: all genes.")
     parser.add_argument("--chunk_size", type=int, default=1000, help="Size of chunks for processing data.")
+
+    parser.add_argument("--t_norm", type=str, choices=["drastic", "product", "minimum", "Łukasiewicz"], default="drastic",
+                        help="Type of t-norm to use. Choices: drastic, product, minimum, Łukasiewicz.")
+    parser.add_argument("--t_norm_param", type=float, default=None, 
+                        help="Optional numerical parameter for certain t-norms (if applicable).")
     # TODO sample size for scaling
     return parser.parse_args()
 
@@ -61,47 +72,50 @@ def create_interval_trees(gtf_df):
     return trees
 
 
-def t_norm(value_1, value_2):
-    if value_1 == 1:
-        return value_2
-    if value_2 == 1:
-        return value_1
-    return 0
-    # return value_1 * value_2
-    # return min(value_1, value_2)
-    # return max(0.0, (value_1 + value_2) - 1)
+def t_norm(config, value_1, value_2):
+    if config.t_norm == "drastic":
+        if value_1 == 1:
+            return value_2
+        if value_2 == 1:
+            return value_1
+        return 0
+    elif config.t_norm == "product":
+        return value_1 * value_2
+    elif config.t_norm == "minimum":
+        return min(value_1, value_2)
+    elif config.t_norm == "Łukasiewicz":
+        return max(0.0, (value_1 + value_2) - 1)
+    else:
+        raise ValueError(f"Unknown t-norm type: {config.t_norm}")
 
 
-def t_conorm(value_1, value_2):
-    return 1 - t_norm(1 - value_1, 1 - value_2)
-    # return value_1 + value_2 - value_1 * value_2
-    # return max(value_1, value_2)
-    # return min(value_1 + value_2, 1.0)
+def t_conorm(config, value_1, value_2):
+    return 1 - t_norm(config, 1 - value_1, 1 - value_2)
 
 
-def truth_t_norm(left, right):
-    return t_norm(left[0], right[0]), t_conorm(left[1], right[1])
+def truth_t_norm(config, left, right):
+    return t_norm(config, left[0], right[0]), t_conorm(config, left[1], right[1])
 
 
-def truth_t_conorm(left, right):
-    return t_conorm(left[0], right[0]), t_norm(left[1], right[1])
+def truth_t_conorm(config, left, right):
+    return t_conorm(config, left[0], right[0]), t_norm(config, left[1], right[1])
 
 
-def big_truth_norm(values):
+def big_truth_norm(config, values):
     if len(values) == 0:
         return 0,0
     result = values[0]
     for value in values[1:]:
-        result = truth_t_norm(result, value)
+        result = truth_t_norm(config, result, value)
     return result
 
 
-def big_truth_conorm(values):
+def big_truth_conorm(config, values):
     if len(values) == 0:
         return 0
     result = values[0]
     for value in values[1:]:
-        result = truth_t_conorm(result, value)
+        result = truth_t_conorm(config, result, value)
     return result
 
 
@@ -126,7 +140,7 @@ def scaling_factor_computation(mappings_file_name):
     return scaling_factor, lowest_value  # TODO return low & high
 
 
-def process_mapping_file(mappings_file_name, annotations, trees, lowest_value, scaling_factor):
+def process_mapping_file(config, mappings_file_name, annotations, trees, lowest_value, scaling_factor):
     print(f'Processing Mapping File {mappings_file_name}')
 
     # TODO - add another input, if they are interested in only on some genes
@@ -142,10 +156,10 @@ def process_mapping_file(mappings_file_name, annotations, trees, lowest_value, s
             return 0.0
         return (mapping.get_tag('AS') - lowest_value) / scaling_factor
 
-    def process_pair(mapping_1, mapping_2):
+    def process_pair(config, mapping_1, mapping_2):
         first_value = compute_interval_value(mapping_1)
         second_value = compute_interval_value(mapping_2)
-        return t_norm(first_value, second_value)
+        return t_norm(config, first_value, second_value)
     
     def process_read(mappings):
         # TODO - similar to featureCount -O option, whether to count reads, if on one position there are multiple genes
@@ -163,7 +177,7 @@ def process_mapping_file(mappings_file_name, annotations, trees, lowest_value, s
         for i in range(len(mappings) // 2):
             
             # prejst si vsetky prvy krat, a vypocitat si tieto hodnoty
-            values.append(process_pair(mappings[i], mappings[i + len(mappings) // 2]))
+            values.append(process_pair(config, mappings[i], mappings[i + len(mappings) // 2]))
 
             if mappings[i].is_unmapped or mappings[i].reference_name not in trees:
                 if mappings[i + len(mappings) // 2].is_unmapped or mappings[i + len(mappings) // 2].reference_name not in trees:
@@ -210,7 +224,7 @@ def process_mapping_file(mappings_file_name, annotations, trees, lowest_value, s
     return gene_for_values, gene_against_values      
 
 
-def compute_results(output_file_name, annotations, gene_for_values, gene_against_values):
+def compute_results(config, output_file_name, annotations, gene_for_values, gene_against_values):
    
     print(f'Computing Counts')
 
@@ -220,7 +234,7 @@ def compute_results(output_file_name, annotations, gene_for_values, gene_against
         permutation = random.sample(range(len(bilattice_values)), len(bilattice_values))
         result = [bilattice_values[permutation[0]]] * len(bilattice_values)
         for i in range(1, len(bilattice_values)):
-            result[i] = truth_t_norm(result[i - 1], bilattice_values[permutation[i]])
+            result[i] = truth_t_norm(config, result[i - 1], bilattice_values[permutation[i]])
         return result
 
     def necessity_distribution(f, a):
@@ -233,11 +247,11 @@ def compute_results(output_file_name, annotations, gene_for_values, gene_against
 
         values = []
         avgs = []
-        for _ in range(120):
+        for _ in range(50):
             values.append(necessity(billatice_values))
         for value_sample in range(len(billatice_values)):
             column = [row[value_sample] for row in values]
-            avgs.append(big_truth_conorm(column))
+            avgs.append(big_truth_conorm(config, column))
 
         for i in range(len(avgs)):
             if avgs[i][0] < avgs[i][1]:
@@ -261,12 +275,13 @@ def compute_results(output_file_name, annotations, gene_for_values, gene_against
 
 def main():
     args = parse_arguments()
+    config = Config(args)
+
     annotations = process_annotation_file(args.annotation_file, args.chunk_size)
     trees = create_interval_trees(annotations)
     scaling_factor, lowest_value = scaling_factor_computation(args.mappings_file)
-    gene_for_values, gene_against_values = process_mapping_file(args.mappings_file, annotations, trees, lowest_value, scaling_factor)
-    compute_results(args.output_file, annotations, gene_for_values, gene_against_values)
-
-
+    gene_for_values, gene_against_values = process_mapping_file(config, args.mappings_file, annotations, trees, lowest_value, scaling_factor)
+    compute_results(config, args.output_file, annotations, gene_for_values, gene_against_values)
+    
 if __name__ == "__main__":
     main()
