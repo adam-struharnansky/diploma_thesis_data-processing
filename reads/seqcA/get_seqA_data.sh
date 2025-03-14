@@ -5,7 +5,7 @@ source miniconda3/etc/profile.d/conda.sh
 conda activate sra_tools_env
 
 # Define the base directory for storing data
-BASE_DIR=~/genetic_data/reads/seqcA
+BASE_DIR=genetic_data/reads/seqcA
 
 # Create the SRR list
 echo -e "SRR896663\nSRR896665\nSRR896667\nSRR896669\nSRR896671\nSRR896673\nSRR896675\nSRR896677" > srr_list.txt
