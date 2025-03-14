@@ -1,26 +1,35 @@
 #!/bin/bash
 
-# Activate conda enviroment
+# Activate conda environment
 source miniconda3/etc/profile.d/conda.sh
 conda activate feature_counts_env
 
 # Set parameters
-INPUT_DIR="genetic_data/alignments/bowtie2_seqcA_all"
+INPUT_DIR="genetic_data/alignments/star_seqcA_all"
 GTF_FILE="genetic_data/annotations/gencode.v19.annotation.gtf.gz"
-OUTPUT_DIR="genetic_data/counts/bowtie2_featureCounts_all_seqcA"
-THREADS=4 
+OUTPUT_DIR="genetic_data/counts/star_featureCounts_all_seqcA"
+THREADS=4
 
-# Loop through position sorted BAM files in input directory
-for file in "$INPUT_DIR"/*_sorted.bam; do
-    if [[ -f "$file" ]]; then
-        filename=$(basename -- "$file")
-        sample_name="${filename%_sorted.bam}"
-        output_file="$OUTPUT_DIR/${sample_name}_featureCounts.txt"
+# Ensure output directory exists
+mkdir -p "$OUTPUT_DIR"
 
-        # featureCounts command
-        echo "Running featureCounts for $filename"
-        featureCounts -p -M -T "$THREADS" -a "$GTF_FILE" -o "$output_file" "$file"
-    fi
+# Loop through BAM files
+for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
+    # Extract the sample name
+    SAMPLE_NAME=$(basename "$BAM_FILE" _sorted_by_name.bam)
+
+    echo "Processing $SAMPLE_NAME..."
+
+    # Run featureCounts with different multimapped read options
+    featureCounts -p -T "$THREADS" -a "$GTF_FILE" -o "$OUTPUT_DIR/${SAMPLE_NAME}_ignore.txt" "$BAM_FILE"
+
+    featureCounts -p -M -T "$THREADS" -a "$GTF_FILE" -o "$OUTPUT_DIR/${SAMPLE_NAME}_best.txt" "$BAM_FILE"
+
+    featureCounts -p -M -O -T "$THREADS" -a "$GTF_FILE" -o "$OUTPUT_DIR/${SAMPLE_NAME}_all.txt" "$BAM_FILE"
+
+    featureCounts -p -M --fraction -O -T "$THREADS" -a "$GTF_FILE" -o "$OUTPUT_DIR/${SAMPLE_NAME}_fraction.txt" "$BAM_FILE"
+
+    echo "Finished processing $SAMPLE_NAME"
 done
 
-echo "Processing complete!"
+echo "All files processed!"
