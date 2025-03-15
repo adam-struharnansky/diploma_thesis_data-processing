@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Activate conda environment
+source miniconda3/etc/profile.d/conda.sh
+conda activate star_env
+
 # Define variables
 THREADS=4
 MAX_RAM=51539607552  # 48GB in bytes

@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Activate conda environment
+source miniconda3/etc/profile.d/conda.sh
+conda activate bowtie2_env
+
 # Define variables
 THREADS=4
 GENOME_DIR=genetic_data/indexes/bowtie2_index_homo_sapiens
