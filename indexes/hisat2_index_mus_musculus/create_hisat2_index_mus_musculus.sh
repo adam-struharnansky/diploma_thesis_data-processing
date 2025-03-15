@@ -4,6 +4,9 @@
 source miniconda3/etc/profile.d/conda.sh
 conda activate hisat2_env
 
+# Limit the RAM usage
+ulimit -v 45000000  
+
 # Define variables
 THREADS=4
 GENOME_DIR=genetic_data/indexes/hisat2_index_mus_musculus
