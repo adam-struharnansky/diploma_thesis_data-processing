@@ -47,7 +47,10 @@ hisat2-build --ss $GENOME_DIR/splice_sites.txt \
              --exon $GENOME_DIR/exons.txt \
              $GENOME_FASTA_UNZIPPED \
              $GENOME_DIR/genome_index \
-             -p $THREADS
+             -p $THREADS \
+             --bmax 1000000000 \
+             --bmaxdivn 4 \
+             --dcv 1024
 
 # Remove intermediate files
 rm $GENOME_DIR/splice_sites.txt
