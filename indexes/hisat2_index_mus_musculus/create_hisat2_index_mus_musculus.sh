@@ -51,6 +51,8 @@ hisat2-build --ss $GENOME_DIR/splice_sites.txt \
              $GENOME_FASTA_UNZIPPED \
              $GENOME_DIR/genome_index \
              -p $THREADS \
+             --offrate 3
+
 
 # Remove intermediate files
 rm $GENOME_DIR/splice_sites.txt
