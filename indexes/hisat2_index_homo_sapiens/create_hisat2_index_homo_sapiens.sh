@@ -47,7 +47,7 @@ hisat2-build --ss $GENOME_DIR/splice_sites.txt \
              $GENOME_DIR/genome_index \
              -p $THREADS
 
-# Remove intermediate files to keep things clean
+# Remove intermediate files
 rm $GENOME_DIR/splice_sites.txt
 rm $GENOME_DIR/exons.txt
 

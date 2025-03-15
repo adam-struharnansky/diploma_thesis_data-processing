@@ -6,9 +6,9 @@ conda activate hisat2_env
 
 # Define variables
 THREADS=4
-GENOME_DIR=~/genetic_data/indexes/hisat2_index_mus_musculus
-GENOME_FASTA=~/genetic_data/genomes/GRCh37.p13.genome.fa.gz
-ANNOTATION_GTF=~/genetic_data/annotations/gencode.v19.annotation.gtf.gz
+GENOME_DIR=genetic_data/indexes/hisat2_index_mus_musculus
+GENOME_FASTA=genetic_data/genomes/Mus_musculus.GRCh38.dna.primary_assembly.fa.gz
+ANNOTATION_GTF=genetic_data/annotations/Mus_musculus.GRCm38.102.gtf.gz
 
 # Function to unzip files if they are compressed
 unzip_if_needed() {
@@ -47,7 +47,7 @@ hisat2-build --ss $GENOME_DIR/splice_sites.txt \
              $GENOME_DIR/genome_index \
              -p $THREADS
 
-# Remove intermediate files to keep things clean
+# Remove intermediate files
 rm $GENOME_DIR/splice_sites.txt
 rm $GENOME_DIR/exons.txt
 
