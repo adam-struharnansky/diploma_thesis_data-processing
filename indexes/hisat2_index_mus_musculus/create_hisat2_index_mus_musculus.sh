@@ -5,7 +5,7 @@ source miniconda3/etc/profile.d/conda.sh
 conda activate hisat2_env
 
 # Limit the RAM usage
-ulimit -v 45000000  
+ulimit -v 50000000  
 
 # Define variables
 THREADS=4
@@ -51,7 +51,7 @@ hisat2-build --ss $GENOME_DIR/splice_sites.txt \
              $GENOME_FASTA_UNZIPPED \
              $GENOME_DIR/genome_index \
              -p $THREADS \
-             --bmax 1000000000 \
+             --bmax 500000000 \
              --bmaxdivn 4 \
              --dcv 1024
 
