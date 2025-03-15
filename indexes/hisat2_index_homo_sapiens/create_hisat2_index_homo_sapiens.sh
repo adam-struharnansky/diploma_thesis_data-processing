@@ -25,7 +25,9 @@ unzip_if_needed() {
 rezip_if_needed() {
     local file=$1
     if [[ $file == *.gz ]]; then
-        gzip ${file%.gz}
+        local unzipped_file="${file%.gz}"
+        gzip -f $unzipped_file
+        rm -f $unzipped_file
     fi
 }
 
