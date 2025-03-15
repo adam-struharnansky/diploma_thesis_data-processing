@@ -13,6 +13,10 @@ for sample in S{1..8}; do
   mkdir -p "$TARGET_DIR/$sample"
   mv "$TARGET_DIR/data/all_bias/beers/results/${sample}_1.fastq" "$TARGET_DIR/$sample/"
   mv "$TARGET_DIR/data/all_bias/beers/results/${sample}_2.fastq" "$TARGET_DIR/$sample/"
+
+  # Gzip the files and keep the original names with .gz extension
+  gzip "$TARGET_DIR/$sample/${sample}_1.fastq"
+  gzip "$TARGET_DIR/$sample/${sample}_2.fastq"
 done
 
 # Remove unnecessary files / directories
