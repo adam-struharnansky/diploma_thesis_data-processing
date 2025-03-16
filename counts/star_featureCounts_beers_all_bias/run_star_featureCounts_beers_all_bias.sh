@@ -7,7 +7,7 @@ conda activate feature_counts_env
 # Set parameters
 INPUT_DIR="genetic_data/alignments/star_beers_all_bias_all"
 GTF_FILE="genetic_data/annotations/Mus_musculus.GRCm38.102.gtf.gz"
-OUTPUT_DIR="genetic_data/counts/star_featureCounts_beers_all_bias
+OUTPUT_DIR="genetic_data/counts/star_featureCounts_beers_all_bias"
 THREADS=4
 
 # Ensure output directory exists

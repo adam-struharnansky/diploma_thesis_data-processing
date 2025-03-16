@@ -7,7 +7,7 @@ conda activate bilattice_env
 # Set parameters
 INPUT_DIR="genetic_data/alignments/star_beers_all_bias_all" 
 GTF_FILE="genetic_data/annotations/Mus_musculus.GRCm38.102.gtf.gz"
-OUTPUT_DIR="genetic_data/counts/star_bilatticeCount_beers_all_bias
+OUTPUT_DIR="genetic_data/counts/star_bilatticeCount_beers_all_bias"
 SCRIPT="genetic_data/bilattice_count/bilattice_count.py" 
 
 # List of t-norms
