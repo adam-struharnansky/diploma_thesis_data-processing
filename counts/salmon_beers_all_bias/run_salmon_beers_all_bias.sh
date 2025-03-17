@@ -25,7 +25,7 @@ for sample_dir in "$READS"/*/; do
         mkdir -p "$sample_out"
 
         # Run Salmon quant
-        salmon quant -i "$INDEX" -l A -1 "$r1" -2 "$r2" -p 8 -o "$sample_out" --validateMappings
+        salmon quant -i "$INDEX" -l SF -1 "$r1" -2 "$r2" -p 8 -o "$sample_out" --validateMappings
 
         echo "Finished processing $sample_name. Results stored in $sample_out"
     else

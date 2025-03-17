@@ -19,7 +19,7 @@ for file in "$INPUT_DIR"/*_sorted.bam; do
 
         # featureCounts command
         echo "Running featureCounts for $filename"
-        featureCounts -p -M -T "$THREADS" -a "$GTF_FILE" -o "$output_file" "$file"
+        featureCounts -p -M -T "$THREADS" -s 1 -a "$GTF_FILE" -o "$output_file" "$file"
     fi
 done
 

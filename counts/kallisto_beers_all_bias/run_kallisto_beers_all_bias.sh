@@ -24,7 +24,7 @@ for sample_dir in "$READS"/*/; do
         mkdir -p "$sample_out"
 
         # Run Kallisto quant
-        kallisto quant -i "$INDEX" -o "$sample_out" --threads=8 "$r1" "$r2"
+        kallisto quant -i "$INDEX" -o "$sample_out" --fr-stranded --threads=8 "$r1" "$r2"
 
         echo "Finished processing $sample_name. Results stored in $sample_out"
     else

@@ -21,13 +21,13 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
     echo "Processing $SAMPLE_NAME..."
 
     # Run featureCounts with different multimapped read options
-    featureCounts -p -T "$THREADS" -a "$GTF_FILE" -o "$OUTPUT_DIR/${SAMPLE_NAME}_ignore.txt" "$BAM_FILE"
+    featureCounts -p -T "$THREADS" -s 1 -a "$GTF_FILE" -o "$OUTPUT_DIR/${SAMPLE_NAME}_ignore.txt" "$BAM_FILE"
 
-    featureCounts -p -M -T "$THREADS" -a "$GTF_FILE" -o "$OUTPUT_DIR/${SAMPLE_NAME}_best.txt" "$BAM_FILE"
+    featureCounts -p -M -T "$THREADS" -s 1 -a "$GTF_FILE" -o "$OUTPUT_DIR/${SAMPLE_NAME}_best.txt" "$BAM_FILE"
 
-    featureCounts -p -M -O -T "$THREADS" -a "$GTF_FILE" -o "$OUTPUT_DIR/${SAMPLE_NAME}_all.txt" "$BAM_FILE"
+    featureCounts -p -M -O -T "$THREADS" -s 1 -a "$GTF_FILE" -o "$OUTPUT_DIR/${SAMPLE_NAME}_all.txt" "$BAM_FILE"
 
-    featureCounts -p -M --fraction -O -T "$THREADS" -a "$GTF_FILE" -o "$OUTPUT_DIR/${SAMPLE_NAME}_fraction.txt" "$BAM_FILE"
+    featureCounts -p -M --fraction -O -T "$THREADS" -s 1 -a "$GTF_FILE" -o "$OUTPUT_DIR/${SAMPLE_NAME}_fraction.txt" "$BAM_FILE"
 
     echo "Finished processing $SAMPLE_NAME"
 done
