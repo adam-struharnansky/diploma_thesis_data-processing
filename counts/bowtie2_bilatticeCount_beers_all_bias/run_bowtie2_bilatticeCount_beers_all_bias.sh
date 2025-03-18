@@ -28,7 +28,7 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
                          --mappings_file "$BAM_FILE" \
                          --output_file "$OUTPUT_DIR/${SAMPLE_NAME}_${T_NORM}.txt" \
                          --t_norm "$T_NORM" \
-                         --stranded stranded
+                         --strandness stranded
     done
 
     echo "Finished processing $SAMPLE_NAME"
