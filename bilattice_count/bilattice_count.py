@@ -13,11 +13,12 @@ class Config:
     def __init__(self, args):
         self.t_norm = args.t_norm
         self.t_norm_param = args.t_norm_param
+        self.strandness = args.strandness
 
 
 def parse_arguments():
     """Parse and return command-line arguments."""
-    # TODO file existance checks
+    # TODO file existance checks, and maybe warnings if the type of the files does not seem right
     parser = argparse.ArgumentParser(description="Gene expression counter tool.")
     parser.add_argument("--annotation_file", type=str, default="genetic_data/annotations/Mus_musculus.GRCm38.102.gtf", help="Path to the annotation file (GTF format).")
     parser.add_argument("--mappings_file", type=str, default="genetic_data/mappings/star/all_bias/S3_sorted_by_name.bam", help="Path to the mappings file (BAM format).")
@@ -29,7 +30,8 @@ def parse_arguments():
                         help="Type of t-norm to use. Choices: drastic, product, minimum, Łukasiewicz.")
     parser.add_argument("--t_norm_param", type=float, default=None, 
                         help="Optional numerical parameter for certain t-norms (if applicable).")
-    # TODO sample size for scaling
+    parser.add_argument("--strandness", type=str, choices=["unstranded", "stranded", "reverse"], default="unstranded",
+                        help="Strand-specific counting mode. Choices: unstranded, stranded, reverse.")
     return parser.parse_args()
 
 
@@ -42,8 +44,8 @@ def process_annotation_file(annotation_file_name, chunk_size):
         sep='\t', 
         comment='#', 
         header=None,
-        usecols=[0, 2, 3, 4, 8], 
-        dtype={0: str, 2: str, 3: int, 4: int, 8: str},
+        usecols=[0, 2, 3, 4, 6,  8], 
+        dtype={0: str, 2: str, 3: int, 4: int, 6: str,  8: str},
         chunksize=chunk_size 
     ):
         # only interested in genes for now TODO transcripts
@@ -54,21 +56,18 @@ def process_annotation_file(annotation_file_name, chunk_size):
         filtered_chunk[8] = filtered_chunk[8].apply(lambda x: x.split(';')[0].split(' ')[1].replace('"', ''))
         chunks.append(filtered_chunk)
 
-    # TODO - create another structure for transcripts
-    # also, add here all the non-genes (ncRNA, etc) to the same structure as genes
-    # transcripts - either compute with them as part of the gene (first, compute the gene, then look at the transcripts)
-    # transcripts - compute with each of them as possibility for the gene (in between genes computation)
+    # TODO - transciprts, exons, etc.
     gtf_df = pd.concat(chunks, ignore_index=True)
-    gtf_df.columns = ['seqname', 'start', 'end', 'gene_id']
+    gtf_df.columns = ['seqname', 'start', 'end', 'strand', 'gene_id']
     return gtf_df
 
 
 def create_interval_trees(gtf_df):
     print(f'Creating Interval Trees')
-    chromosomes = gtf_df['seqname'].unique() # TODO - check for speed, and/or find better option
+    chromosomes = gtf_df['seqname'].unique()
     trees = {chromosome: IntervalTree() for chromosome in chromosomes}
     for _, row in gtf_df.iterrows():
-        trees[row['seqname']].add(Interval(row['start'], row['end'], row['gene_id']))
+        trees[row['seqname']].add(Interval(row['start'], row['end'], (row['gene_id'], row['strand'])))
     return trees
 
 
@@ -164,19 +163,14 @@ def process_mapping_file(config, mappings_file_name, annotations, trees, lowest_
     def process_read(mappings):
         # TODO - similar to featureCount -O option, whether to count reads, if on one position there are multiple genes
 
-        # TODO sort mappings, to create pairs
-        # najskor sa pozriet na chromozomy
-        # TODO, pozriet si, ci je to dalej vzdy takto, alebo nie
-        # TODO - niekedy su aj tri, alebo neparny pocet, potom to nedava uplne zmysel
-
-        #print(len(mappings))
+        # TODO sort mappings, to create pairs (now we are expecting them to be in certain way)
+        # TODO solve uneven number of mappings (best by sorting them and creating pairs)
 
         values = []
         genes = []
 
+
         for i in range(len(mappings) // 2):
-            
-            # prejst si vsetky prvy krat, a vypocitat si tieto hodnoty
             values.append(process_pair(config, mappings[i], mappings[i + len(mappings) // 2]))
 
             if mappings[i].is_unmapped or mappings[i].reference_name not in trees:
@@ -190,7 +184,27 @@ def process_mapping_file(config, mappings_file_name, annotations, trees, lowest_
             if not gene:
                 genes.append(None)
             else:
-                genes.append(next(iter(gene)))
+                if config.strandness == "unstranded":
+                    genes.append(next(iter(gene)))
+                elif config.strandness == "stranded":
+                    first_gene = next(iter(gene))
+                    if first_gene.data[1] == '-' and mappings[i].is_reverse:
+                        genes.append(first_gene)
+                    elif first_gene.data[1] == '+' and not mappings[i].is_reverse:
+                        genes.append(first_gene)
+                    else:
+                        genes.append(None)
+                elif config.strandness == "reverse":
+                    first_gene = next(iter(gene))
+                    if first_gene.data[1] == '-' and not mappings[i].is_reverse:
+                        genes.append(first_gene)
+                    elif first_gene.data[1] == '+' and mappings[i].is_reverse:
+                        genes.append(first_gene)
+                    else:
+                        genes.append(None)
+                else:
+                    raise ValueError(f"Unknown strandness type: {config.strandness}")
+
 
         for i in range(len(mappings) // 2):
             if not genes[i]:
@@ -201,6 +215,7 @@ def process_mapping_file(config, mappings_file_name, annotations, trees, lowest_
                 if i != j:
                     max_against = max(max_against, values[j])
             gene_against_values[genes[i].data].append(max_against)
+
     i = 0
     with pysam.AlignmentFile(mappings_file_name, "rb") as mapping_file:
         previous_query_name = ''
@@ -208,6 +223,10 @@ def process_mapping_file(config, mappings_file_name, annotations, trees, lowest_
         for mapping in mapping_file:
             if mapping.reference_name not in trees:
                 # TODO - think about it, and maybe add it only to the negative parts of current query_name
+                continue
+            if config.strandness == "stranded" and mapping.is_reverse:
+                continue
+            if config.strandness == "reverse" and not mapping.is_reverse:
                 continue
 
             if mapping.query_name != previous_query_name:
