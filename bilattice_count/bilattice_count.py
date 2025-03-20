@@ -1,66 +1,156 @@
 
 import argparse
+import numpy as np
+import os
 import pandas as pd
 import pysam
 import random
-import numpy as np
+import sys
+import warnings
 
 from collections import defaultdict
+from enum import Enum
 from intervaltree import Interval, IntervalTree
+
+
+class TNorm(str, Enum):
+    DRASTIC = "drastic"
+    PRODUCT = "product"
+    MINIMUM = "minimum"
+    LUKASIEWICZ = "Łukasiewicz"
+
+
+class Strandness(str, Enum):
+    UNSTRANDED = "unstranded"
+    STRANDED = "stranded"
+    REVERSE = "reverse"
+
+
+class UnmappedMateHandling(str, Enum):
+    ZERO = "zero"
+    DISCARD = "discard"
 
 
 class Config:
     def __init__(self, args):
+        self.annotation_file = args.annotation_file
+        self.mappings_file = args.mappings_file
+        self.output_file = args.output_file
+        self.investigated_genes = args.investigated_genes
+        self.chunk_size = args.chunk_size
         self.t_norm = args.t_norm
         self.t_norm_param = args.t_norm_param
         self.strandness = args.strandness
+        self.paired_end = args.paired_end
+        self.handle_unmapped_mate = args.handle_unmapped_mate
+        self.verbose = args.verbose
+
+
+def validate_file(path, expected_suffixes):
+    """
+    Check if a file exists and has one of the expected suffixes.
+
+    Args:
+        path (str): Path to the file to validate.
+        expected_suffixes (list[str] or tuple[str]): List or tuple of valid suffixes (e.g. ['.bam', '.gtf']).
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+        UserWarning: If the file exists but does not have one of the expected suffixes.
+    """
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"Error: File '{path}' not found.")
+    
+    if not any(path.endswith(suffix) for suffix in expected_suffixes):
+        warnings.warn(f"Warning: File '{path}' does not have an expected suffix {expected_suffixes}.")
 
 
 def parse_arguments():
-    """Parse and return command-line arguments."""
-    # TODO file existance checks, and maybe warnings if the type of the files does not seem right
+    """
+    Parse and return command-line arguments for the gene expression counter tool.
+
+    This function sets up an argument parser with various parameters related to input files,
+    t-norm selection, strand-specific counting, and other runtime options. It also validates
+    the existence and suffix of the specified input files.
+
+    Returns:
+        argparse.Namespace: Parsed arguments from the command line.
+
+    Raises:
+        FileNotFoundError: If any required input file does not exist.
+        UserWarning: If any input file does not have an expected suffix.
+    """
+
     parser = argparse.ArgumentParser(description="Gene expression counter tool.")
     parser.add_argument("--annotation_file", type=str, default="genetic_data/annotations/Mus_musculus.GRCm38.102.gtf", help="Path to the annotation file (GTF format).")
     parser.add_argument("--mappings_file", type=str, default="genetic_data/mappings/star/all_bias/S3_sorted_by_name.bam", help="Path to the mappings file (BAM format).")
     parser.add_argument("--output_file", type=str, default="genetic_data/outputs", help="Name of the output file.")
     parser.add_argument("--investigated_genes", type=str, default=None, help="File with investigated genes. Default: all genes.")
     parser.add_argument("--chunk_size", type=int, default=1000, help="Size of chunks for processing data.")
-
-    parser.add_argument("--t_norm", type=str, choices=["drastic", "product", "minimum", "Łukasiewicz"], default="drastic",
+    parser.add_argument("--t_norm", type=TNorm, choices=list(TNorm), default=TNorm.PRODUCT,
                         help="Type of t-norm to use. Choices: drastic, product, minimum, Łukasiewicz.")
     parser.add_argument("--t_norm_param", type=float, default=None, 
                         help="Optional numerical parameter for certain t-norms (if applicable).")
-    parser.add_argument("--strandness", type=str, choices=["unstranded", "stranded", "reverse"], default="unstranded",
+    parser.add_argument("--strandness", type=Strandness, choices=list(Strandness), default=Strandness.UNSTRANDED,
                         help="Strand-specific counting mode. Choices: unstranded, stranded, reverse.")
-    return parser.parse_args()
+    parser.add_argument("--paired_end", action='store_true', help="Set if reads are paired-end.")
+    parser.add_argument("--handle_unmapped_mate", type=UnmappedMateHandling,
+                        choices=list(UnmappedMateHandling), default=UnmappedMateHandling.DISCARD,
+                        help="How to handle cases where only one mate is mapped: 'zero' to use 0 as score, 'discard' to skip.")
+    parser.add_argument("--verbose", action='store_true', help="Print additional information during processing.")
+
+    args = parser.parse_args()
+    
+    # Input files validation
+    validate_file(args.annotation_file, expected_suffixes=[".gtf", ".gtf.gz"])
+    validate_file(args.mappings_file, expected_suffixes=[".bam", ".sam", ".bam.gz"])
+    
+    if args.investigated_genes:
+        validate_file(args.investigated_genes, expected_suffixes=[".txt", ".csv", ".tsv", ".txt.gz", ".csv.gz", ".tsv.gz"])
+    
+    return args
 
 
-def process_annotation_file(annotation_file_name, chunk_size):
-    print(f'Processing annotation file {annotation_file_name}')
+def process_annotation_file(config):
+    if config.verbose:
+        print(f'Processing annotation file {config.annotation_file} (feature: {config.feature_type}, attribute: {config.attribute})')
+
     chunks = []
-
     for chunk in pd.read_csv(
-        annotation_file_name, 
+        config.annotation_file, 
         sep='\t', 
         comment='#', 
         header=None,
-        usecols=[0, 2, 3, 4, 6,  8], 
-        dtype={0: str, 2: str, 3: int, 4: int, 6: str,  8: str},
-        chunksize=chunk_size 
+        usecols=[0, 2, 3, 4, 6, 8], 
+        dtype={0: str, 2: str, 3: int, 4: int, 6: str, 8: str},
+        chunksize=config.chunk_size
     ):
-        # only interested in genes for now TODO transcripts
-        filtered_chunk = chunk[chunk[2] == 'gene'].copy()
-        # as all rows contains gene, we no longer need this information
+        # Filter rows by selected feature type
+        filtered_chunk = chunk[chunk[2] == config.feature_type].copy()
+        if filtered_chunk.empty:
+            continue
+
+        # Drop feature type column
         filtered_chunk = filtered_chunk.drop(2, axis=1)
-        # we want to extract only the gene_id from the atribute feature
-        filtered_chunk[8] = filtered_chunk[8].apply(lambda x: x.split(';')[0].split(' ')[1].replace('"', ''))
+
+        # Extract the attribute (e.g., gene_id or transcript_id)
+        def extract_attribute(attr_string):
+            for entry in attr_string.split(';'):
+                entry = entry.strip()
+                if entry.startswith(config.attribute):
+                    return entry.split(' ')[1].replace('"', '')
+            return None  # in case attribute is not found
+
+        filtered_chunk[8] = filtered_chunk[8].apply(extract_attribute)
+        filtered_chunk = filtered_chunk.dropna(subset=[8])
         chunks.append(filtered_chunk)
 
-    # TODO - transciprts, exons, etc.
-    gtf_df = pd.concat(chunks, ignore_index=True)
-    gtf_df.columns = ['seqname', 'start', 'end', 'strand', 'gene_id']
-    return gtf_df
+    if not chunks:
+        raise ValueError(f"No entries with feature '{config.feature_type}' and attribute '{config.attribute}' found in {config.annotation_file}.")
 
+    gtf_df = pd.concat(chunks, ignore_index=True)
+    gtf_df.columns = ['seqname', 'start', 'end', 'strand', config.attribute]
+    return gtf_df
 
 def create_interval_trees(gtf_df):
     print(f'Creating Interval Trees')
@@ -72,17 +162,17 @@ def create_interval_trees(gtf_df):
 
 
 def t_norm(config, value_1, value_2):
-    if config.t_norm == "drastic":
+    if config.t_norm == TNorm.DRASTIC:
         if value_1 == 1:
             return value_2
         if value_2 == 1:
             return value_1
         return 0
-    elif config.t_norm == "product":
+    elif config.t_norm == TNorm.PRODUCT:
         return value_1 * value_2
-    elif config.t_norm == "minimum":
+    elif config.t_norm == TNorm.MINIMUM:
         return min(value_1, value_2)
-    elif config.t_norm == "Łukasiewicz":
+    elif config.t_norm == TNorm.LUKASIEWICZ:
         return max(0.0, (value_1 + value_2) - 1)
     else:
         raise ValueError(f"Unknown t-norm type: {config.t_norm}")
@@ -118,12 +208,12 @@ def big_truth_conorm(config, values):
     return result
 
 
-def scaling_factor_computation(mappings_file_name):
+def scaling_factor_computation(config):
     print(f'Finding Lowest and Highest Values in Annotation File')
     lowest_value = 255
     highest_value = -256
 
-    with pysam.AlignmentFile(mappings_file_name, "rb") as mapping_file:
+    with pysam.AlignmentFile(config.mappings_file, "rb") as mapping_file:
         sample_size = 100000
         for mapping in mapping_file:
             if mapping.has_tag('AS'):
@@ -136,114 +226,131 @@ def scaling_factor_computation(mappings_file_name):
                 break
 
     scaling_factor = highest_value - lowest_value
-    return scaling_factor, lowest_value  # TODO return low & high
+    return scaling_factor, lowest_value
 
 
-def process_mapping_file(config, mappings_file_name, annotations, trees, lowest_value, scaling_factor):
-    print(f'Processing Mapping File {mappings_file_name}')
-
-    # TODO - add another input, if they are interested in only on some genes
-    # probably think, if we need to compute the distributions for all genes
+def process_mapping_file(config, annotations, trees, lowest_value, scaling_factor):
+    print(f'Processing Mapping File {config.mappings_file}')
 
     gene_for_values = {gene_id: [] for gene_id in annotations['gene_id']}
     gene_against_values = {gene_id: [] for gene_id in annotations['gene_id']}
-
-    # TODO - different types of annotation files (SAP)
 
     def compute_interval_value(mapping):
         if not mapping.has_tag('AS'):
             return 0.0
         return (mapping.get_tag('AS') - lowest_value) / scaling_factor
 
-    def process_pair(config, mapping_1, mapping_2):
-        first_value = compute_interval_value(mapping_1)
-        second_value = compute_interval_value(mapping_2)
-        return t_norm(config, first_value, second_value)
+    def process_pair(mapping_1, mapping_2):
+        '''
+        Process a pair of mappings (paired-end). It return a tuple with the mappings and computed FOR value of the pair.
+        '''
+        if mapping_2 is None:
+            return ((mapping_1), 
+                    t_norm(config, compute_interval_value(mapping_1), lowest_value))
+        return ((mapping_1,mapping_2), 
+                 t_norm(config, compute_interval_value(mapping_1), compute_interval_value(mapping_2)))        
     
-    def process_read(mappings):
-        # TODO - similar to featureCount -O option, whether to count reads, if on one position there are multiple genes
-
-        # TODO sort mappings, to create pairs (now we are expecting them to be in certain way)
-        # TODO solve uneven number of mappings (best by sorting them and creating pairs)
-
-        values = []
-        genes = []
-
-
-        for i in range(len(mappings) // 2):
-            values.append(process_pair(config, mappings[i], mappings[i + len(mappings) // 2]))
-
-            if mappings[i].is_unmapped or mappings[i].reference_name not in trees:
-                if mappings[i + len(mappings) // 2].is_unmapped or mappings[i + len(mappings) // 2].reference_name not in trees:
-                    gene = set()
-                else:
-                    gene = trees[mappings[i + len(mappings) // 2].reference_name][mappings[i + len(mappings) // 2].reference_start:mappings[i + len(mappings) // 2].reference_end]
-            else:
-                gene = trees[mappings[i].reference_name][mappings[i].reference_start:mappings[i].reference_end]
-                
-            if not gene:
-                genes.append(None)
-            else:
-                if config.strandness == "unstranded":
-                    genes.append(next(iter(gene)))
-                elif config.strandness == "stranded":
-                    first_gene = next(iter(gene))
-                    if first_gene.data[1] == '-' and mappings[i].is_reverse:
-                        genes.append(first_gene)
-                    elif first_gene.data[1] == '+' and not mappings[i].is_reverse:
-                        genes.append(first_gene)
-                    else:
-                        genes.append(None)
-                elif config.strandness == "reverse":
-                    first_gene = next(iter(gene))
-                    if first_gene.data[1] == '-' and not mappings[i].is_reverse:
-                        genes.append(first_gene)
-                    elif first_gene.data[1] == '+' and mappings[i].is_reverse:
-                        genes.append(first_gene)
-                    else:
-                        genes.append(None)
-                else:
-                    raise ValueError(f"Unknown strandness type: {config.strandness}")
-
-
-        for i in range(len(mappings) // 2):
-            if not genes[i]:
-                continue
-            gene_for_values[genes[i].data].append(values[i])
-            max_against = 0.0
-            for j in range(len(mappings) // 2):
+    def choose_genes(trees, mapping):
+        if mapping.reference_name not in trees:
+            return []
+        overlapping_genes = trees[mapping.reference_name][mapping.reference_start:mapping.reference_end]
+        if not overlapping_genes:
+            return []
+        chosen_genes = []
+        for interval in overlapping_genes:
+            gene_id, strand = interval.data
+            if config.strandness == Strandness.UNSTRANDED:
+                chosen_genes.append(gene_id)
+            elif config.strandness == Strandness.STRANDED:
+                if (strand == '-' and mapping.is_reverse) or (strand == '+' and not mapping.is_reverse):
+                    chosen_genes.append(gene_id)
+            elif config.strandness == Strandness.REVERSE:
+                if (strand == '-' and not mapping.is_reverse) or (strand == '+' and mapping.is_reverse):
+                    chosen_genes.append(gene_id)
+        return chosen_genes
+    
+    def compute_against_values(for_values):
+        result = [0.0] * len(for_values)
+        for i in range(len(for_values)):
+            for j in range(len(for_values)):
                 if i != j:
-                    max_against = max(max_against, values[j])
-            gene_against_values[genes[i].data].append(max_against)
+                    result[i] = t_conorm(config, result[i], for_values[j])
+        return result
 
-    i = 0
-    with pysam.AlignmentFile(mappings_file_name, "rb") as mapping_file:
+    def process_read(mappings):
+        if config.paired_end: # paired-end logic
+            mappings.sort(key=lambda x: (x.reference_name, x.reference_start))
+            mapping_value_pairs = []
+
+            i = 0
+            while i < len(mappings):
+                mapping = mappings[i]
+                if mapping.mate_is_unmapped or i == len(mappings) - 1:                
+                    if config.handle_unmapped_mate == UnmappedMateHandling.ZERO:
+                        mapping_value_pairs.append(process_pair(mapping, None))
+                    i += 1
+                else:
+                    mapping_value_pairs.append(process_pair(mapping, mappings[i + 1]))
+                    i += 2
+
+            gene_lists = []
+            for_values = []
+            for pair in mapping_value_pairs:
+                genes = set()
+                for mapping in pair[0]:
+                    genes.update(choose_genes(trees, mapping))
+                gene_lists.append((genes))
+                for_values.append(pair[1])
+            against_values = compute_against_values(for_values)
+
+            for i in range(len(gene_lists)):
+                for gene in gene_lists[i]:
+                    gene_for_values[gene].append(for_values[i])
+                    gene_against_values[gene].append(against_values[i])
+
+        else: # single-end logic
+            gene_lists = []
+            for_values = []
+            for mapping in mappings:
+                if mapping.is_unmapped or mapping.reference_name not in trees:
+                    continue
+                value = compute_interval_value(mapping)
+                genes = choose_genes(trees, mapping)
+                if genes is None:
+                    continue
+                gene_lists.append(genes)
+                for_values.append(value)
+            against_values = compute_against_values(for_values)
+
+            for i in range(len(gene_lists)):
+                for gene in gene_lists[i]:
+                    gene_for_values[gene].append(for_values[i])
+                    gene_against_values[gene].append(against_values[i])
+              
+    with pysam.AlignmentFile(config.mappings_file, "rb") as mapping_file:
         previous_query_name = ''
         mapping_buffer = []
-        for mapping in mapping_file:
-            if mapping.reference_name not in trees:
-                # TODO - think about it, and maybe add it only to the negative parts of current query_name
-                continue
-            if config.strandness == "stranded" and mapping.is_reverse:
-                continue
-            if config.strandness == "reverse" and not mapping.is_reverse:
-                continue
-
+        for i, mapping in enumerate(mapping_file):
             if mapping.query_name != previous_query_name:
                 process_read(mapping_buffer)
-                mapping_buffer = [mapping]
+                mapping_buffer = []
                 previous_query_name = mapping.query_name
-            else:
-                mapping_buffer.append(mapping)
+            if mapping.is_unmapped:
+                continue
+            if config.handle_unmapped_mate == UnmappedMateHandling.DISCARD and mapping.mate_is_unmapped:
+                continue
+            mapping_buffer.append(mapping)
 
-            i += 1
-            
-            if i % 1000000 == 0:
+            if i % 10000 == 0: # TODO verbose
                 print(f'First {i} processed')
-    return gene_for_values, gene_against_values      
+
+        if mapping_buffer: # process the last read
+            process_read(mapping_buffer)
+
+    return gene_for_values, gene_against_values
 
 
-def compute_results(config, output_file_name, annotations, gene_for_values, gene_against_values):
+def compute_results(config, annotations, gene_for_values, gene_against_values):
    
     print(f'Computing Counts')
 
@@ -278,7 +385,7 @@ def compute_results(config, output_file_name, annotations, gene_for_values, gene
         return len(avgs)
 
 
-    with open(output_file_name, 'w') as file:
+    with open(config.output_file, 'w') as file:
         # Write each row to the file
         # file.write(row + '\n')
         hjkl = 0
@@ -293,14 +400,12 @@ def compute_results(config, output_file_name, annotations, gene_for_values, gene
                 print(f'processed {hjkl} genes')
 
 def main():
-    args = parse_arguments()
-    config = Config(args)
-
-    annotations = process_annotation_file(args.annotation_file, args.chunk_size)
+    config = Config(parse_arguments())
+    annotations = process_annotation_file(config)
     trees = create_interval_trees(annotations)
-    scaling_factor, lowest_value = scaling_factor_computation(args.mappings_file)
-    gene_for_values, gene_against_values = process_mapping_file(config, args.mappings_file, annotations, trees, lowest_value, scaling_factor)
-    compute_results(config, args.output_file, annotations, gene_for_values, gene_against_values)
+    scaling_factor, lowest_value = scaling_factor_computation(config)
+    gene_for_values, gene_against_values = process_mapping_file(config, annotations, trees, lowest_value, scaling_factor)
+    compute_results(config, annotations, gene_for_values, gene_against_values)
     
 if __name__ == "__main__":
     main()
