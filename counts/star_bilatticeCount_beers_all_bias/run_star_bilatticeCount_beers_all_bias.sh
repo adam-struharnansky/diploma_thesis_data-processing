@@ -25,9 +25,13 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
         echo "Using t-norm: $T_NORM"
         
         python "$SCRIPT" --annotation_file "$GTF_FILE" \
-                         --mappings_file "$BAM_FILE" \
+                         --alignments_file "$BAM_FILE" \
                          --output_file "$OUTPUT_DIR/${SAMPLE_NAME}_${T_NORM}.txt" \
-                         --t_norm "$T_NORM"
+                         --t_norm "$T_NORM" \
+                         --paired_end \
+                         --strandness stranded \
+                         --seed 42 \
+                         --verbose
     done
 
     echo "Finished processing $SAMPLE_NAME"

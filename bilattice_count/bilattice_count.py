@@ -6,6 +6,7 @@ import pandas as pd
 import pysam
 import random
 import sys
+import time
 import warnings
 
 from collections import defaultdict
@@ -39,7 +40,7 @@ class IntersectionMode(str, Enum):
 class Config:
     def __init__(self, args):
         self.annotation_file = args.annotation_file
-        self.mappings_file = args.mappings_file
+        self.alignments_file = args.alignments_file
         self.output_file = args.output_file
         self.investigated_genes = args.investigated_genes
         self.chunk_size = args.chunk_size
@@ -50,7 +51,8 @@ class Config:
         self.handle_unmapped_mate = args.handle_unmapped_mate
         self.feature = args.feature
         self.grouping_feature = args.grouping_feature
-        self.sample_size = args.sample_size
+        self.read_sample_size = args.read_sample_size
+        self.subset_sample_size = args.subset_sample_size
         self.intersection_mode = args.intersection_mode
         self.min_alignment_score = args.min_alignment_score
         self.max_alignment_score = args.max_alignment_score
@@ -95,7 +97,7 @@ def parse_arguments():
 
     parser = argparse.ArgumentParser(description="Gene expression counter tool.")
     parser.add_argument("--annotation_file", type=str, required=True, help="Path to the annotation file (GTF format).")
-    parser.add_argument("--mappings_file", type=str, required=True, help="Path to the mappings file (BAM format).")
+    parser.add_argument("--alignments_file", type=str, required=True, help="Path to the alignments file (BAM format).")
     parser.add_argument("--output_file", type=str, required=True, help="Name of the output file.")
     parser.add_argument("--investigated_genes", type=str, default=None, help="File with investigated genes. Default: all genes.")
     parser.add_argument("--chunk_size", type=int, default=50000, help="Size of chunks for processing data.")
@@ -115,9 +117,10 @@ def parse_arguments():
                         help="Feature type to extract from GTF, by which the feature results will be grouped (e.g., gene_id, transcript_id). Default: gene_id.")
     parser.add_argument('--intersection_mode', type=IntersectionMode, default=IntersectionMode.STRICT, choices=list(IntersectionMode), 
                         help='Mode for computing the intersection of intervals.')
-    parser.add_argument("--sample_size", type=int, default=100000, help="Number of reads to sample for scaling factor computation.")
-    parser.add_argument('--min_alignment_score', type=int, default=None, help='Minimum alignment score that is in the mappings file.')
-    parser.add_argument('--max_alignment_score', type=int, default=None, help='Maximum alignment score that is in the mappings file.')
+    parser.add_argument("--read_sample_size", type=int, default=100000, help="Number of reads to sample for scaling factor computation.")
+    parser.add_argument('--subset_sample_size', type=int, default=10, help='Number of samples to use for necessity computation.')
+    parser.add_argument('--min_alignment_score', type=int, default=None, help='Minimum alignment score that is in the alignments file.')
+    parser.add_argument('--max_alignment_score', type=int, default=None, help='Maximum alignment score that is in the alignments file.')
     parser.add_argument("--verbose", action='store_true', help="Print additional information during processing.")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility. Default: random.")
 
@@ -132,7 +135,7 @@ def parse_arguments():
     
     # Input files validation
     validate_file(args.annotation_file, expected_suffixes=[".gtf", ".gtf.gz"])
-    validate_file(args.mappings_file, expected_suffixes=[".bam", ".sam", ".bam.gz"])
+    validate_file(args.alignments_file, expected_suffixes=[".bam", ".sam", ".bam.gz"])
     
     if args.investigated_genes:
         validate_file(args.investigated_genes, expected_suffixes=[".txt", ".csv", ".tsv", ".txt.gz", ".csv.gz", ".tsv.gz"])
@@ -233,7 +236,7 @@ def create_interval_trees(config, gtf_df):
         gtf_df (pandas.DataFrame): DataFrame with columns ['seqname', 'start', 'end', 'strand', 'gene_id'].
 
     Returns:
-        dict[str, IntervalTree]: A dictionary mapping chromosome names to IntervalTree objects.
+        dict[str, IntervalTree]: A dictionary alignments chromosome names to IntervalTree objects.
     """
     if config.verbose:
         print(f'Creating Interval Trees')
@@ -398,16 +401,16 @@ def scaling_factor_computation(config):
 
     If both `min_alignment_score` and `max_alignment_score` are provided in the config,
     they are used directly to compute the scaling factor. Otherwise, this function
-    samples up to `config.sample_size` alignments from the specified BAM file to estimate
+    samples up to `config.read_sample_size` alignments from the specified BAM file to estimate
     the observed minimum and maximum alignment scores (based on the 'AS' tag), and
     calculates the scaling factor accordingly.
 
     Args:
         config (Namespace): Configuration object containing:
-            - mappings_file (str): Path to the BAM file.
+            - alignments_file (str): Path to the BAM file.
             - min_alignment_score (int or None): Minimum alignment score (optional).
             - max_alignment_score (int or None): Maximum alignment score (optional).
-            - sample_size (int): Number of alignments to sample from the file.
+            - read_sample_size (int): Number of alignments to sample from the file.
             - verbose (bool): Whether to print progress messages.
 
     Returns:
@@ -420,21 +423,21 @@ def scaling_factor_computation(config):
     """
     if config.max_alignment_score != None and config.min_alignment_score != None:
         if config.verbose:
-            print(f'Using given arguments for lowest: {config.min_alignment_score} and highest: {config.max_alignment_score} values in mappings file')
+            print(f'Using given arguments for lowest: {config.min_alignment_score} and highest: {config.max_alignment_score} values in alignments file')
         scaling_factor = config.max_alignment_score - config.min_alignment_score
         return scaling_factor, lowest_value
     if config.verbose:
-        print(f'Finding Lowest and Highest Values in mappings File')
+        print(f'Finding Lowest and Highest Values in alignments File')
     
     lowest_value = float('inf')
     highest_value = float('-inf')
 
-    with pysam.AlignmentFile(config.mappings_file, "rb") as mapping_file:
-        for i, mapping in enumerate(mapping_file):
-            if i >= config.sample_size:
+    with pysam.AlignmentFile(config.alignments_file, "rb") as alignment_file:
+        for i, alignment in enumerate(alignment_file):
+            if i >= config.read_sample_size:
                 break
-            if mapping.has_tag('AS'):
-                value = mapping.get_tag('AS')
+            if alignment.has_tag('AS'):
+                value = alignment.get_tag('AS')
                 lowest_value = min(lowest_value, value)
                 highest_value = max(highest_value, value)
     
@@ -445,7 +448,7 @@ def scaling_factor_computation(config):
     return scaling_factor, lowest_value
 
 
-def process_mapping_file(config, annotations, trees, lowest_value, scaling_factor):
+def process_alignment_file(config, annotations, trees, lowest_value, scaling_factor):
     """
     Process a BAM file to compute 'for' and 'against' values for each annotated feature.
 
@@ -458,72 +461,72 @@ def process_mapping_file(config, annotations, trees, lowest_value, scaling_facto
         config (Namespace): Configuration object specifying parameters such as strandness,
             t-norm type, paired-end handling, and verbosity.
         annotations (pandas.DataFrame): DataFrame containing the identifiers of features of interest.
-        trees (dict[str, IntervalTree]): Mapping from reference names (e.g., chromosomes) to interval trees
+        trees (dict[str, IntervalTree]): Alignment from reference names (e.g., chromosomes) to interval trees
             of annotated features.
         lowest_value (float): Minimum alignment score used for normalization.
         scaling_factor (float): Difference between maximum and minimum alignment scores.
 
     Returns:
-        tuple[dict[str, list[float]], dict[str, list[float]]]: Two dictionaries mapping feature IDs to:
+        tuple[dict[str, list[float]], dict[str, list[float]]]: Two dictionaries alignment feature IDs to:
             - lists of 'for' values (evidence supporting the feature),
             - lists of 'against' values (evidence contradicting the feature).
     """
     if config.verbose:
-        print(f'Processing Mapping File {config.mappings_file}')
+        print(f'Processing alignment file {config.alignments_file}')
 
     gene_for_values = {gene_id: [] for gene_id in annotations['feature']}
     gene_against_values = {gene_id: [] for gene_id in annotations['feature']}
 
-    def normalize_alignment_score(mapping):
+    def normalize_alignment_score(alignment):
         """
-        Normalize the alignment score of a single read mapping.
+        Normalize the alignment score of a single read alignment.
 
         Args:
-            mapping (pysam.AlignedSegment): A read alignment.
+            alignment (pysam.AlignedSegment): A read alignment.
 
         Returns:
             float: Normalized alignment score in [0, 1]. Returns 0.0 if the 'AS' tag is missing.
         """
-        if not mapping.has_tag('AS'):
+        if not alignment.has_tag('AS'):
             return 0.0
-        return (mapping.get_tag('AS') - lowest_value) / scaling_factor
+        return (alignment.get_tag('AS') - lowest_value) / scaling_factor
 
-    def process_pair(mapping_1, mapping_2):
+    def process_pair(alignment_1, alignment_2):
         """
-        Process a pair of mappings and compute a combined FOR value.
+        Process a pair of alignments and compute a combined FOR value.
 
         Args:
-            mapping_1 (pysam.AlignedSegment): The first alignment in the pair.
-            mapping_2 (pysam.AlignedSegment or None): The second alignment in the pair, or None if unmapped.
+            alignment_1 (pysam.AlignedSegment): The first alignment in the pair.
+            alignment_2 (pysam.AlignedSegment or None): The second alignment in the pair, or None if unmapped.
 
         Returns:
-            tuple[tuple[pysam.AlignedSegment], float]: The mapping(s) and their combined FOR value
+            tuple[tuple[pysam.AlignedSegment], float]: The alignment(s) and their combined FOR value
                 computed using the selected t-norm.
         """
-        if mapping_2 is None:
-            return ((mapping_1), 
-                    t_norm(config, normalize_alignment_score(mapping_1), lowest_value))
-        return ((mapping_1,mapping_2), 
-                 t_norm(config, normalize_alignment_score(mapping_1), normalize_alignment_score(mapping_2)))        
+        if alignment_2 is None:
+            return ((alignment_1), 
+                    t_norm(config, normalize_alignment_score(alignment_1), lowest_value))
+        return ((alignment_1,alignment_2), 
+                 t_norm(config, normalize_alignment_score(alignment_1), normalize_alignment_score(alignment_2)))        
     
-    def choose_genes(trees, mapping):
+    def choose_genes(trees, alignment):
         """
-        Identify which features overlap with the given mapping, respecting strandness.
+        Identify which features overlap with the given alignment, respecting strandness.
 
         Args:
             trees (dict[str, IntervalTree]): Interval trees indexed by reference name.
-            mapping (pysam.AlignedSegment): A single alignment.
+            alignment (pysam.AlignedSegment): A single alignment.
 
         Returns:
             list[str]: List of overlapping feature IDs that match the strandness criteria.
         """
-        if mapping.reference_name not in trees:
+        if alignment.reference_name not in trees:
             return []
         if config.intersection_mode == IntersectionMode.STRICT:
-            overlapping_genes = trees[mapping.reference_name][mapping.reference_start:mapping.reference_end]
+            overlapping_genes = trees[alignment.reference_name][alignment.reference_start:alignment.reference_end]
         elif config.intersection_mode == IntersectionMode.ANY:
-            start_overlapping_genes = trees[mapping.reference_name][mapping.reference_start:mapping.reference_start + 1]
-            end_overlapping_genes = trees[mapping.reference_name][mapping.reference_end - 1:mapping.reference_end]
+            start_overlapping_genes = trees[alignment.reference_name][alignment.reference_start:alignment.reference_start + 1]
+            end_overlapping_genes = trees[alignment.reference_name][alignment.reference_end - 1:alignment.reference_end]
             overlapping_genes = list(set(start_overlapping_genes + end_overlapping_genes))
         else:
             raise ValueError(f"Unsupported intersection mode: {config.intersection_mode}")
@@ -536,10 +539,10 @@ def process_mapping_file(config, annotations, trees, lowest_value, scaling_facto
             if config.strandness == Strandness.UNSTRANDED:
                 chosen_genes.append(gene_id)
             elif config.strandness == Strandness.STRANDED:
-                if (strand == '-' and mapping.is_reverse) or (strand == '+' and not mapping.is_reverse):
+                if (strand == '-' and alignment.is_reverse) or (strand == '+' and not alignment.is_reverse):
                     chosen_genes.append(gene_id)
             elif config.strandness == Strandness.REVERSE:
-                if (strand == '-' and not mapping.is_reverse) or (strand == '+' and mapping.is_reverse):
+                if (strand == '-' and not alignment.is_reverse) or (strand == '+' and alignment.is_reverse):
                     chosen_genes.append(gene_id)
         return chosen_genes
     
@@ -563,40 +566,40 @@ def process_mapping_file(config, annotations, trees, lowest_value, scaling_facto
                     result[i] = t_conorm(config, result[i], for_values[j])
         return result
 
-    def process_read(mappings):
+    def process_read(alignments):
         """
         Process a group of alignments belonging to a single read (or read pair).
 
-        Determines which annotated features the mappings support, computes normalized
+        Determines which annotated features the alignments support, computes normalized
         FOR and AGAINST values using fuzzy logic, and accumulates them into the overall
         feature support dictionaries.
 
         Handles both single-end and paired-end reads according to the configuration.
 
         Args:
-            mappings (list[pysam.AlignedSegment]): List of alignments associated with one read name.
+            alignments (list[pysam.AlignedSegment]): List of alignments associated with one read name.
         """
         if config.paired_end: # paired-end logic
-            mappings.sort(key=lambda x: (x.reference_name, x.reference_start))
-            mapping_value_pairs = []
+            alignments.sort(key=lambda x: (x.reference_name, x.reference_start))
+            alignment_value_pairs = []
 
             i = 0
-            while i < len(mappings):
-                mapping = mappings[i]
-                if mapping.mate_is_unmapped or i == len(mappings) - 1:                
+            while i < len(alignments):
+                alignment = alignments[i]
+                if alignment.mate_is_unmapped or i == len(alignments) - 1:                
                     if config.handle_unmapped_mate == UnmappedMateHandling.ZERO:
-                        mapping_value_pairs.append(process_pair(mapping, None))
+                        alignment_value_pairs.append(process_pair(alignment, None))
                     i += 1
                 else:
-                    mapping_value_pairs.append(process_pair(mapping, mappings[i + 1]))
+                    alignment_value_pairs.append(process_pair(alignment, alignments[i + 1]))
                     i += 2
 
             gene_lists = []
             for_values = []
-            for pair in mapping_value_pairs:
+            for pair in alignment_value_pairs:
                 genes = set()
-                for mapping in pair[0]:
-                    genes.update(choose_genes(trees, mapping))
+                for alignment in pair[0]:
+                    genes.update(choose_genes(trees, alignment))
                 gene_lists.append((genes))
                 for_values.append(pair[1])
             against_values = compute_against_values(for_values)
@@ -609,11 +612,11 @@ def process_mapping_file(config, annotations, trees, lowest_value, scaling_facto
         else: # single-end logic
             gene_lists = []
             for_values = []
-            for mapping in mappings:
-                if mapping.is_unmapped or mapping.reference_name not in trees:
+            for alignment in alignments:
+                if alignment.is_unmapped or alignment.reference_name not in trees:
                     continue
-                value = normalize_alignment_score(mapping)
-                genes = choose_genes(trees, mapping)
+                value = normalize_alignment_score(alignment)
+                genes = choose_genes(trees, alignment)
                 if genes is None:
                     continue
                 gene_lists.append(genes)
@@ -625,24 +628,24 @@ def process_mapping_file(config, annotations, trees, lowest_value, scaling_facto
                     gene_for_values[gene].append(for_values[i])
                     gene_against_values[gene].append(against_values[i])
               
-    with pysam.AlignmentFile(config.mappings_file, "rb") as mapping_file:
+    with pysam.AlignmentFile(config.alignments_file, "rb") as alignment_file:
         previous_query_name = ''
-        mapping_buffer = []
-        for i, mapping in enumerate(mapping_file):
-            if mapping.query_name != previous_query_name:
-                process_read(mapping_buffer)
-                mapping_buffer = []
-                previous_query_name = mapping.query_name
-            if mapping.is_unmapped:
+        alignment_buffer = []
+        for i, alignment in enumerate(alignment_file):
+            if alignment.query_name != previous_query_name:
+                process_read(alignment_buffer)
+                alignment_buffer = []
+                previous_query_name = alignment.query_name
+            if alignment.is_unmapped:
                 continue
-            if config.handle_unmapped_mate == UnmappedMateHandling.DISCARD and mapping.mate_is_unmapped:
+            if config.handle_unmapped_mate == UnmappedMateHandling.DISCARD and alignment.mate_is_unmapped:
                 continue
-            mapping_buffer.append(mapping)
+            alignment_buffer.append(alignment)
 
-            if config.verbose and (i % 100000 == 0) and (i > 0):
-                print(f'First {i} reads processed')
-        if mapping_buffer: # process the last read
-            process_read(mapping_buffer)
+            if config.verbose and (i % 1000000 == 0) and (i > 0):
+                print(f'Processed {i} reads from alignment file')
+        if alignment_buffer: # process the last read
+            process_read(alignment_buffer)
         if config.verbose and i > 0:
             print(f'All {i} reads processed')
     
@@ -669,8 +672,8 @@ def compute_results(config, annotations, gene_for_values, gene_against_values):
             and t-norm logic.
         annotations (pandas.DataFrame): DataFrame with feature annotations, containing at least
             'feature', 'grouping_feature', 'start', and 'end' columns.
-        gene_for_values (dict[str, list[float]]): Mapping from feature IDs to FOR values.
-        gene_against_values (dict[str, list[float]]): Mapping from feature IDs to AGAINST values.
+        gene_for_values (dict[str, list[float]]): Alignment from feature IDs to FOR values.
+        gene_against_values (dict[str, list[float]]): Alignment from feature IDs to AGAINST values.
 
     Returns:
         None: Results are written directly to the output file specified in `config.output_file`.
@@ -678,45 +681,57 @@ def compute_results(config, annotations, gene_for_values, gene_against_values):
     if config.verbose:
         print(f'Computing Counts')
 
-    def batch_necessity(for_values, against_values, samples):
+    def batch_necessity(for_values, against_values):
         
         n = len(for_values)
         
-        # Step 1: Create random permutations
-        matrix = np.empty((samples, 2, n), dtype=np.float32)
-        for s in range(samples):
+        # Random permutations
+        matrix = np.empty((config.subset_sample_size, 2, n), dtype=np.float32)
+        for s in range(config.subset_sample_size):
             perm = np.random.permutation(n)
             matrix[s, 0, :] = for_values[perm]
             matrix[s, 1, :] = against_values[perm]
 
-        # Step 2: Cumulative aggregation along each row
+        # Cumulative aggregation along each row
         for i in range(1, n):
             matrix[:, 0, i] = t_norm_batch(config, matrix[:, 0, i - 1], matrix[:, 0, i])
             matrix[:, 1, i] = t_conorm_batch(config, matrix[:, 1, i - 1], matrix[:, 1, i])
 
         return matrix
 
-    def necessity_distribution(for_vals, against_vals, samples=50):
+    def necessity_distribution(for_vals, against_vals):
         if len(for_vals) == 0:
             return 0
+        
+        # Generate all random permutations and cumulative row-wise t-norms
+        matrix = batch_necessity(for_vals, against_vals)
 
-        matrix = batch_necessity(for_vals, against_vals, samples)
-        avgs = []
+        # Aggregate over columns (across samples) using dual logic
+        #        result: (2, N)
+        for_agg = matrix[:, 0, :]  # shape: (samples, N)
+        against_agg = matrix[:, 1, :]  # shape: (samples, N)
 
-        for i in range(matrix.shape[2]):  # over positions
-            # shape: (samples, 2) slice
-            sample_column = matrix[:, :, i]
-            avgs.append(big_truth_conorm(config, sample_column))
+        # Apply t_conorm across rows (i.e., over the samples axis)
+        agg_for = for_agg[0, :]
+        agg_against = against_agg[0, :]
+        for i in range(1, config.subset_sample_size):
+            agg_for = t_conorm_batch(config, agg_for, for_agg[i, :])
+            agg_against = t_norm_batch(config, agg_against, against_agg[i, :])
 
-        for i, (f_val, a_val) in enumerate(avgs):
-            if f_val < a_val:
+        # Decision
+        for i in range(len(agg_for)):
+            if agg_for[i] < agg_against[i]:
                 return i
 
-        return len(avgs)
+        return len(agg_for)
+
+        
+    
 
     annotations['length_kb'] = (annotations['end'] - annotations['start']) / 1000.0
 
     counts = []
+    previous_time = time.time()
     for i, row in annotations.iterrows():
         feature_id = row['feature']
         count = necessity_distribution(
@@ -726,6 +741,9 @@ def compute_results(config, annotations, gene_for_values, gene_against_values):
         counts.append(count)
         if config.verbose and i % 5000 == 0 and i > 0:
             print(f'Processed {i} features')
+            current_time = time.time()
+            print(f'Time: {previous_time - current_time}')
+            previous_time = current_time
     if config.verbose:
         print(f'All {annotations.shape[0]} features processed')
 
@@ -750,15 +768,19 @@ def compute_results(config, annotations, gene_for_values, gene_against_values):
         for i, row in grouped_df.iterrows():
             file.write(f"{row['grouping_feature']}\t{int(row['count'])}\t{row['tpm']:.4f}\n")
 
-            
 
 def main():
+    start_time = time.time()
     config = Config(parse_arguments())
     annotations = process_annotation_file(config)
     trees = create_interval_trees(config, annotations)
     scaling_factor, lowest_value = scaling_factor_computation(config)
-    gene_for_values, gene_against_values = process_mapping_file(config, annotations, trees, lowest_value, scaling_factor)
+    gene_for_values, gene_against_values = process_alignment_file(config, annotations, trees, lowest_value, scaling_factor)
     compute_results(config, annotations, gene_for_values, gene_against_values)
-    
+    end_time = time.time()
+    if config.verbose:
+        print(f"Execution took {end_time - start_time:.4f} seconds")
+
+
 if __name__ == "__main__":
     main()

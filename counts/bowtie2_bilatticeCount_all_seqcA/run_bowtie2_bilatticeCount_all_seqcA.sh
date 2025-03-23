@@ -6,7 +6,7 @@ conda activate bilattice_env
 
 # Set parameters
 INPUT_DIR="genetic_data/alignments/bowtie2_seqcA_all" 
-GTF_FILE="genetic_data/annotations/gencode.v19.annotation.gtf.gz"
+GTF_FILE="genetic_data/annotations/gencode.v19.annotation.gtf"
 OUTPUT_DIR="genetic_data/counts/bowtie2_bilatticeCount_all_seqcA"
 SCRIPT="genetic_data/bilattice_count/bilattice_count.py" 
 
@@ -25,9 +25,14 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
         echo "Using t-norm: $T_NORM"
         
         python "$SCRIPT" --annotation_file "$GTF_FILE" \
-                         --mappings_file "$BAM_FILE" \
+                         --alignments_file "$BAM_FILE" \
                          --output_file "$OUTPUT_DIR/${SAMPLE_NAME}_${T_NORM}.txt" \
-                         --t_norm "$T_NORM"
+                         --t_norm "$T_NORM" \
+                         --paired_end \
+                         --strandness unstranded \
+                         --seed 42 \
+                         --verbose
+
     done
 
     echo "Finished processing $SAMPLE_NAME"
