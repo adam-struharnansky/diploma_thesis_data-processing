@@ -14,11 +14,12 @@ from enum import Enum
 from intervaltree import Interval, IntervalTree
 
 
-class TNorm(str, Enum):
-    DRASTIC = "drastic"
-    PRODUCT = "product"
-    MINIMUM = "minimum"
-    LUKASIEWICZ = "Łukasiewicz"
+class TNorm(Enum):
+    DRASTIC = 'drastic'
+    PRODUCT = 'product'
+    MINIMUM = 'minimum'
+    LUKASIEWICZ = 'Łukasiewicz'
+    SCHWEIZER_SKLAR = 'schweizer_sklar'
 
 
 class Strandness(str, Enum):
@@ -283,6 +284,35 @@ def t_norm(config, value_1, value_2):
         return min(value_1, value_2)
     elif config.t_norm == TNorm.LUKASIEWICZ:
         return max(0.0, (value_1 + value_2) - 1)
+    elif config.t_norm == TNorm.SCHWEIZER_SKLAR:
+        p = config.t_norm_param
+        if p is None:
+            raise ValueError("Parameter 't_norm_param' must be specified for Schweizer–Sklar t-norm")
+
+        if np.isneginf(p):
+            return min(value_1, value_2)
+
+        elif p < 0:
+            val = value_1**p + value_2**p - 1
+            return max(0.0, val)**(1 / p)
+
+        elif p == 0:
+            return value_1 * value_2
+
+        elif p > 0 and not np.isposinf(p):
+            val = value_1**p + value_2**p - 1
+            return max(0.0, val)**(1 / p)
+
+        elif np.isposinf(p):
+            if value_1 == 1:
+                return value_2
+            if value_2 == 1:
+                return value_1
+            return 0
+
+        else:
+            raise ValueError("Invalid t-norm parameter p.")
+
     else:
         raise ValueError(f"Unknown t-norm type: {config.t_norm}")
 
@@ -333,6 +363,36 @@ def t_norm_batch(config, a, b):
 
     elif config.t_norm == TNorm.LUKASIEWICZ:
         return np.maximum(0.0, a + b - 1)
+    elif config.t_norm == TNorm.SCHWEIZER_SKLAR:
+        p = config.t_norm_param
+        if p is None:
+            raise ValueError("Parameter 't_norm_param' must be specified for Schweizer–Sklar t-norm")
+
+        if np.isneginf(p):
+            return np.minimum(a, b)
+
+        elif p < 0:
+            val = a**p + b**p - 1
+            return np.power(np.clip(val, 0, None), 1 / p)
+
+        elif p == 0:
+            return a * b
+
+        elif p > 0 and not np.isposinf(p):
+            val = a**p + b**p - 1
+            return np.power(np.clip(val, 0, None), 1 / p)
+
+        elif np.isposinf(p):
+            result = np.zeros_like(a)
+            mask_a1 = (a == 1)
+            mask_b1 = (b == 1)
+
+            result[mask_a1] = b[mask_a1]
+            result[mask_b1 & ~mask_a1] = a[mask_b1 & ~mask_a1]
+            return result
+
+        else:
+            raise ValueError("Invalid t-norm parameter p.")
 
     else:
         raise ValueError(f"Unknown t-norm type: {config.t_norm}")
@@ -724,9 +784,6 @@ def compute_results(config, annotations, gene_for_values, gene_against_values):
                 return i
 
         return len(agg_for)
-
-        
-    
 
     annotations['length_kb'] = (annotations['end'] - annotations['start']) / 1000.0
 
