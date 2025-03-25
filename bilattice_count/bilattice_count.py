@@ -293,6 +293,8 @@ def t_norm(config, value_1, value_2):
             return min(value_1, value_2)
 
         elif p < 0:
+            if value_1 == 0.0 or value_2 == 0.0:
+                return 0.0
             val = value_1**p + value_2**p - 1
             return max(0.0, val)**(1 / p)
 
@@ -370,9 +372,10 @@ def t_norm_batch(config, a, b):
 
         if np.isneginf(p):
             return np.minimum(a, b)
-
+       
         elif p < 0:
-            val = a**p + b**p - 1
+            mask_zero = (a == 0) | (b == 0)
+            val = np.where(mask_zero, 0.0, np.power(a, p) + np.power(b, p) - 1)
             return np.power(np.clip(val, 0, None), 1 / p)
 
         elif p == 0:
