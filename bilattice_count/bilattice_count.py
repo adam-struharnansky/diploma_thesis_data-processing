@@ -370,16 +370,24 @@ def t_norm_batch(config, a, b):
         if p is None:
             raise ValueError("Parameter 't_norm_param' must be specified for Schweizer–Sklar t-norm")
 
-        if np.isneginf(p):
-            return np.minimum(a, b)
-       
-        elif p < 0:
-            mask_zero = (a == 0) | (b == 0)
-            val = np.where(mask_zero, 0.0, np.power(a, p) + np.power(b, p) - 1)
-            return np.power(np.clip(val, 0, None), 1 / p)
+        EPSILON = 1e-5
+        a = np.clip(a, 0.0, 1.0)
+        b = np.clip(b, 0.0, 1.0)
 
-        elif p == 0:
+        if abs(p) < EPSILON:
             return a * b
+
+        elif np.isneginf(p):
+            return np.minimum(a, b)
+
+        elif p < 0:
+            result = np.zeros_like(a)
+            safe_mask = (a > 0) & (b > 0)
+            a_safe = a[safe_mask]
+            b_safe = b[safe_mask]
+            val = a_safe**p + b_safe**p - 1
+            result[safe_mask] = np.power(np.clip(val, 0, None), 1 / p)
+            return result
 
         elif p > 0 and not np.isposinf(p):
             val = a**p + b**p - 1
@@ -389,16 +397,12 @@ def t_norm_batch(config, a, b):
             result = np.zeros_like(a)
             mask_a1 = (a == 1)
             mask_b1 = (b == 1)
-
             result[mask_a1] = b[mask_a1]
             result[mask_b1 & ~mask_a1] = a[mask_b1 & ~mask_a1]
             return result
 
         else:
             raise ValueError("Invalid t-norm parameter p.")
-
-    else:
-        raise ValueError(f"Unknown t-norm type: {config.t_norm}")
     
 
 def t_conorm_batch(config, a, b):
