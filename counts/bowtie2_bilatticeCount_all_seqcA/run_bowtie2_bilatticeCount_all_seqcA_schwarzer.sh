@@ -26,11 +26,10 @@ format_p_for_filename() {
 for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
     SAMPLE_NAME=$(basename "$BAM_FILE" _sorted_by_name.bam)
     echo "Processing $SAMPLE_NAME with Schweizer–Sklar t-norms..."
-    P_SAFE=$(format_p_for_filename "$P")
-
+    
     for P in "${P_VALUES[@]}"; do
         echo "Using Schweizer–Sklar t-norm with p=$P"
-
+        P_SAFE=$(format_p_for_filename "$P")
         python "$SCRIPT" --annotation_file "$GTF_FILE" \
                          --alignments_file "$BAM_FILE" \
                          --output_file "$OUTPUT_DIR/${SAMPLE_NAME}_schweizer_sklar_p${P_SAFE}.txt" \
