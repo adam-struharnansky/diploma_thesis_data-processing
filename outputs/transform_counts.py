@@ -36,7 +36,7 @@ def process_kallisto(filepath):
 def process_mytool(filepath):
     """Process custom tool output file."""
     print(f"Processing my own tool's file: {filepath}")
-    df = pd.read_csv(filepath, sep="\t")  # Adjust based on format
+    df = pd.read_csv(filepath, sep="\t")  # TODO correct things
     return df
 
 def process_file(filepath):
@@ -95,9 +95,15 @@ def process_rt_pcr():
     # Display the extracted columns
     return selected_columns
 
-def process_featurecounts()
+def process_featurecounts():
+    pass
+
 if __name__ == "__main__":
     df = process_rt_pcr()
+    # asi bude dobre pridat aj pridanie dalsich veci.. ale neviem ako to bude najrychlejsie
+    # pripisat to pre kadu metodu, a tiez spojit to pomocou nazvu genov
+    # a potom to iba vypisat pre akzdu metodu si urobit tie tabulky
+    # aby sme to vedeli vidiet
 
 
 
