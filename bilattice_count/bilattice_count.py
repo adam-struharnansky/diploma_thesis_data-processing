@@ -272,6 +272,8 @@ def t_norm(config, value_1, value_2):
     Raises:
         ValueError: If the t-norm specified in `config.t_norm` is not recognized.
     """
+    value_1 = min(1.0, max(0.0, value_1))
+    value_2 = min(1.0, max(0.0, value_2))
     if config.t_norm == TNorm.DRASTIC:
         if value_1 == 1:
             return value_2
