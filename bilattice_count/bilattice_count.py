@@ -20,6 +20,7 @@ class TNorm(Enum):
     MINIMUM = 'minimum'
     LUKASIEWICZ = 'Łukasiewicz'
     SCHWEIZER_SKLAR = 'schweizer_sklar'
+    HAMACHER = 'hamacher'
 
 
 class Strandness(str, Enum):
@@ -291,19 +292,17 @@ def t_norm(config, value_1, value_2):
         if p is None:
             raise ValueError("Parameter 't_norm_param' must be specified for Schweizer–Sklar t-norm")
 
-        if np.isneginf(p):
+        EPSILON = 1e-5
+
+        if abs(p) < EPSILON:
+            return value_1 * value_2
+        
+        elif np.isneginf(p):
             return min(value_1, value_2)
 
         elif p < 0:
             if value_1 == 0.0 or value_2 == 0.0:
                 return 0.0
-            val = value_1**p + value_2**p - 1
-            return max(0.0, val)**(1 / p)
-
-        elif p == 0:
-            return value_1 * value_2
-
-        elif p > 0 and not np.isposinf(p):
             val = value_1**p + value_2**p - 1
             return max(0.0, val)**(1 / p)
 
@@ -313,10 +312,34 @@ def t_norm(config, value_1, value_2):
             if value_2 == 1:
                 return value_1
             return 0
-
+        
+        elif p > 0:
+            val = value_1**p + value_2**p - 1
+            return max(0.0, val)**(1 / p)
+        
         else:
             raise ValueError("Invalid t-norm parameter p.")
+        
+    elif config.t_norm == TNorm.HAMACHER:
+        p = config.t_norm_param
+        if p is None:
+            raise ValueError("Parameter 't_norm_param' must be specified for Hamacher t-norm")
 
+        if np.isposinf(p):
+            # Drastic t-norm
+            if value_1 == 1:
+                return value_2
+            if value_2 == 1:
+                return value_1
+            return 0.0
+
+        elif value_1 == 0 or value_2 == 0:
+            return 0.0
+        
+        numerator = value_1 * value_2
+        denominator = p + (1 - p) * (value_1 + value_2 - value_1 * value_2)
+        return numerator / denominator if denominator != 0 else 0.0
+    
     else:
         raise ValueError(f"Unknown t-norm type: {config.t_norm}")
 
@@ -405,6 +428,29 @@ def t_norm_batch(config, a, b):
 
         else:
             raise ValueError("Invalid t-norm parameter p.")
+    elif config.t_norm == TNorm.HAMACHER:
+        p = config.t_norm_param
+        if p is None:
+            raise ValueError("Parameter 't_norm_param' must be specified for Hamacher t-norm")
+
+        if np.isposinf(p):
+            # Drastic t-norm
+            result = np.zeros_like(a)
+            mask_a1 = (a == 1)
+            mask_b1 = (b == 1)
+            result[mask_a1] = b[mask_a1]
+            result[mask_b1 & ~mask_a1] = a[mask_b1 & ~mask_a1]
+            return result
+
+        # Avoid division by zero in corner case - also, if one of them is zero, the results is zero
+        mask_zero = (a == 0) | (b == 0)
+        numerator = a * b
+        denominator = p + (1 - p) * (a + b - a * b)
+        result = np.divide(numerator, denominator, out=np.zeros_like(numerator), where=(denominator != 0))
+        result[mask_zero] = 0.0
+        return result
+    else:
+        raise ValueError(f"Unknown t-norm type: {config.t_norm}")
     
 
 def t_conorm_batch(config, a, b):
