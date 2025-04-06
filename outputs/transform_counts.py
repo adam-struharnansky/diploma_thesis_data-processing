@@ -1,9 +1,71 @@
+
+import gzip
 import os
 import pandas as pd
+import re
 
 
 def strip_version(ensembl_id):
     return ensembl_id.split('.')[0]
+
+
+def get_gene_lengths_from_gtf(filepath):
+    """
+    Parse a GTF file and return a DataFrame with gene_id and their exon-based lengths.
+
+    Parameters:
+    filepath (str): Path to the GTF file (.gtf or .gtf.gz)
+
+    Returns:
+    pd.DataFrame: DataFrame with columns ['gene_id', 'gene_length']
+    """
+    def parse_attributes(attr_str):
+        attrs = {}
+        for attr in attr_str.strip().split(';'):
+            if attr.strip() == '':
+                continue
+            key, value = attr.strip().split(' ', 1)
+            attrs[key] = value.strip('"')
+        return attrs
+
+    exon_intervals = {}
+
+    open_func = gzip.open if filepath.endswith('.gz') else open
+    with open_func(filepath, 'rt') as f:
+        for line in f:
+            if line.startswith('#'):
+                continue
+            parts = line.strip().split('\t')
+            if len(parts) != 9:
+                continue
+            feature = parts[2]
+            if feature != 'exon':
+                continue
+            start, end = int(parts[3]), int(parts[4])
+            attributes = parse_attributes(parts[8])
+            gene_id = attributes.get('gene_id')
+            if gene_id is None:
+                continue
+            if gene_id not in exon_intervals:
+                exon_intervals[gene_id] = []
+            exon_intervals[gene_id].append((start, end))
+
+    # Merge overlapping exon intervals
+    gene_lengths = []
+    for gene_id, intervals in exon_intervals.items():
+        intervals.sort()
+        merged = []
+        for start, end in intervals:
+            if not merged or merged[-1][1] < start:
+                merged.append([start, end])
+            else:
+                merged[-1][1] = max(merged[-1][1], end)
+        total_length = sum(end - start + 1 for start, end in merged)
+        gene_lengths.append((gene_id, total_length))
+
+    df = pd.DataFrame(gene_lengths, columns=['gene_id', 'gene_length'])
+    return df
+
 
 def process_featureCounts(filepath):
     """Process featureCounts output file."""
@@ -16,14 +78,29 @@ def process_featureCounts(filepath):
     df = df[["gene_id", "TPM"]]  # Keep only gene_id and TPM
     return df
 
-def process_htseq(filepath):
-    """Process HTSeq output file."""
+def process_htseq(filepath, gene_lengths_df):
+    """
+    Process HTSeq output and compute TPM values using gene lengths.
+
+    Parameters:
+    filepath (str): Path to HTSeq count file (TSV)
+    gene_lengths_df (pd.DataFrame): DataFrame with 'gene_id' and 'gene_length' (in bp)
+
+    Returns:
+    pd.DataFrame: DataFrame with ['gene_id', 'counts', 'gene_length', 'TPM']
+    """
     print(f"\t Processing HTSeq file: {filepath}")
-    df = pd.read_csv(filepath, sep="\t", header=None, names=["gene_id", "tpm"])
+
+    df = pd.read_csv(filepath, sep="\t", header=None, names=["gene_id", "counts"])
     df = df[~df["gene_id"].str.startswith("__")]
-    df.columns = ['gene_id', 'TPM']
     df['gene_id'] = df['gene_id'].apply(strip_version)
-    return df
+    df['counts'] = pd.to_numeric(df['counts'], errors='coerce')
+
+    # Merge with gene lengths
+    merged = pd.merge(df, gene_lengths_df, on='gene_id', how='inner')
+    # TPM calculation
+    merged["TPM"] = (merged["counts"] / merged["gene_length"]) / (merged["counts"] / merged["gene_length"]).sum() * 1e6
+    return merged[["gene_id", "TPM"]]
 
 def process_salmon(filepath):
     """Process Salmon output file."""
@@ -35,24 +112,17 @@ def process_salmon(filepath):
     return df
 
 def process_kallisto(filepath):
-    """Process Kallisto output file."""
+    """Process Kallisto output file and compute gene-level TPM by summing transcript-level TPMs."""
     print(f"\t Processing Kallisto file: {filepath}")
     df = pd.read_csv(filepath, sep="\t")
 
     # gene ID (ENSG) extraction from the target_id column
     df['gene_id'] = df['target_id'].apply(lambda x: x.split('|')[1])
 
-    # Aggregate raw counts and effective lengths by gene_id
-    gene_counts = df.groupby('gene_id')['est_counts'].sum().reset_index()
-    gene_lengths = df.groupby('gene_id')['eff_length'].sum().reset_index()
-
-    # Merge the aggregated counts and lengths
-    gene_data = pd.merge(gene_counts, gene_lengths, on='gene_id')
-
-    # Recalculate TPM values
-    gene_data['TPM'] = (gene_data['est_counts'] / gene_data['eff_length']) * 1e6 / gene_data['est_counts'].sum()
-    gene_data = gene_data[['gene_id', 'TPM']]
-
+    # Sum TPM values per gene
+    gene_data = df.groupby('gene_id')['tpm'].sum().reset_index()
+    gene_data.rename(columns={'tpm': 'TPM'}, inplace=True)
+    gene_data['gene_id'] = gene_data['gene_id'].apply(strip_version)
     return gene_data
 
 def process_bilatticeCount(filepath):
@@ -79,20 +149,53 @@ def process_rt_pcr(outputs_path):
 
     return selected_columns
 
-def process_gt_beers():
-    pass
+def process_gt_beers(file_name):
+    """
+    Processes a ground truth BEERS2 parquet file.
+    
+    Steps:
+    - Load file
+    - Filter to rows where 'run' is in `all_bias`
+    - For samples 1 through 8:
+        - Filter by sample
+        - Group by gene and sum TPMs
+    - Return a list of 8 gene-level TPM DataFrames (one for each sample)
+    """
+    # Load the data
+    df = pd.read_parquet(file_name)
 
-def process_simple_directory(directory_path, tool_type):
+    # Filter only those values that are in all_bias
+    df_filtered = df[df['run'] ==  'all_bias']
+
+    # List to hold resulting gene-level DataFrames
+    gene_tpm_dfs = []
+
+    # Process each sample
+    for sample_num in range(1, 9):
+        # Filter for the sample
+        sample_df = df_filtered[df_filtered['sample'] == sample_num]
+
+        # Group by gene and sum TPM
+        gene_tpm = sample_df.groupby('GeneID')['TPM'].sum().reset_index()
+        gene_tpm.rename(columns={'GeneID': 'gene_id'}, inplace=True)
+
+        gene_tpm_dfs.append(gene_tpm)
+
+    return gene_tpm_dfs
+
+def process_simple_directory(directory_path, tool_type, gene_lengths_df=None):
     all_dataframes = []
     
     for filename in os.listdir(directory_path):
-        if 'schweizer' in filename or 'sklar' in filename:
+        if 'schweizer' in filename or 'sklar' in filename or 'hamacher' in filename:
             continue
         if filename.endswith(".txt"):
             filepath = os.path.join(directory_path, filename)
+            if os.path.getsize(filepath) == 0:
+                continue
             df = pd.DataFrame()
             if tool_type == 'HTSeq':
-                df = process_htseq(filepath)
+                df = process_htseq(filepath, gene_lengths_df=gene_lengths_df)
             elif tool_type == 'featureCounts':
                 df = process_featureCounts(filepath)
             elif tool_type == 'bilatticeCount':
@@ -112,7 +215,7 @@ def process_simple_directory(directory_path, tool_type):
     else:
         return pd.DataFrame(columns=['gene_id'])  # Return an empty DataFrame if no files were processed
     
-def process_complex_directory(directory_path, tool_type):
+def process_complex_directory(directory_path, tool_type, gene_lengths_df=None):
     all_dataframes = []
     for subdir in os.listdir(directory_path):
         subdir_path = os.path.join(directory_path, subdir)
@@ -138,7 +241,7 @@ def process_complex_directory(directory_path, tool_type):
     else:
         return pd.DataFrame(columns=['gene_id'])  # Return an empty DataFrame if no files were processed
 
-def process_seqcA(counts_path, outputs_path):
+def process_seqcA(counts_path, outputs_path, gene_lengths_df=None):
     df = process_rt_pcr(outputs_path)
     df = df[['gene_id', 'RT_A_relative']]
     for dir_name in os.listdir(counts_path):
@@ -148,7 +251,7 @@ def process_seqcA(counts_path, outputs_path):
             if 'featureCounts' in dir_name:
                 df_dir = process_simple_directory(dir_path, 'featureCounts')
             elif 'HTSeq' in dir_name:
-                df_dir = process_simple_directory(dir_path, 'HTSeq')
+                df_dir = process_simple_directory(dir_path, 'HTSeq', gene_lengths_df=gene_lengths_df)
             elif 'bilatticeCount' in dir_name:
                 df_dir = process_simple_directory(dir_path, 'bilatticeCount')
             elif 'kallisto' in dir_name:
@@ -156,11 +259,11 @@ def process_seqcA(counts_path, outputs_path):
             elif 'salmon' in dir_name:
                 df_dir = process_complex_directory(dir_path, 'salmon')
 
-            # Merge the processed data with the main dataframe
+            # Merging the processed data with the main dataframe
             df = pd.merge(df, df_dir, on="gene_id", how="left")
     df.to_csv(os.path.join(outputs_path, 'seqcA.csv'), index=False)
 
-def process_seqcB(counts_path, outputs_path):
+def process_seqcB(counts_path, outputs_path, gene_lengths_df=None):
     df = process_rt_pcr(outputs_path)
     df = df['gene_id', 'RT_B_relative']
     for root, dirs, files in os.walk(counts_path):
@@ -170,7 +273,7 @@ def process_seqcB(counts_path, outputs_path):
                 if 'featureCounts' in dir_name:
                     df_dir = process_simple_directory(dir_path, 'featureCounts')
                 elif 'HTSeq' in dir_name:
-                    df_dir = process_simple_directory(dir_path, 'HTSeq')
+                    df_dir = process_simple_directory(dir_path, 'HTSeq', gene_lengths_df=gene_lengths_df)
                 elif 'bilatticeCount' in dir_name:
                     df_dir = process_simple_directory(dir_path, 'bilatticeCount')
                 elif 'kallisto' in dir_name:
@@ -178,35 +281,77 @@ def process_seqcB(counts_path, outputs_path):
                 elif 'salmon' in dir_name:
                     df_dir = process_complex_directory(dir_path, 'salmon')
 
-                # Merge the processed data with the main dataframe
+                # Merging the processed data with the main dataframe
                 df = pd.merge(df, df_dir, on="gene_id", how="left")
     df.to_csv(os.path.join(outputs_path, 'seqcB.csv'), index=False)
 
-def process_beers(counts_path, outputs_path):
-    df = process_gt_beers(outputs_path)
-    df = df['gene_id', 'beers_GT']
-    for root, dirs, files in os.walk(counts_path):
-        for dir_name in dirs:
-            if dir_name.endswith("beers_all_bias"):
-                dir_path = os.path.join(root, dir_name)
-                if 'featureCounts' in dir_name:
-                    df_dir = process_simple_directory(dir_path, 'featureCounts')
-                elif 'HTSeq' in dir_name:
-                    df_dir = process_simple_directory(dir_path, 'HTSeq')
-                elif 'bilatticeCount' in dir_name:
-                    df_dir = process_simple_directory(dir_path, 'bilatticeCount')
-                elif 'kallisto' in dir_name:
-                    df_dir = process_complex_directory(dir_path, 'kallisto')
-                elif 'salmon' in dir_name:
-                    df_dir = process_complex_directory(dir_path, 'salmon')
 
-                # Merge the processed data with the main dataframe
-                df = pd.merge(df, df_dir, on="gene_id", how="left")
-    df.to_csv(os.path.join(outputs_path, 'beers.csv'), index=False)
+def process_beers(counts_path, outputs_path, gene_lengths_df=None):
+    # Step 1: Load ground truth TPMs per sample (list of 8 DataFrames)
+    gene_tpm_dfs = process_gt_beers(outputs_path)  # returns sample1 to sample8
+
+    # Step 2: Prepare one empty list for each sample (index 0 = sample 1, etc.)
+    all_samples = [[] for _ in range(8)]
+
+    # Step 3: Traverse all tools' directories and process files
+    for root, dirs, _ in os.walk(counts_path):
+        for dir_name in dirs:
+            if not dir_name.endswith("beers_all_bias"):
+                continue
+
+            dir_path = os.path.join(root, dir_name)
+
+            # Select the tool-specific processor
+            if 'featureCounts' in dir_name:
+                df_dir = process_simple_directory(dir_path, 'featureCounts')
+            elif 'HTSeq' in dir_name:
+                df_dir = process_simple_directory(dir_path, 'HTSeq', gene_lengths_df=gene_lengths_df)
+            elif 'bilatticeCount' in dir_name:
+                df_dir = process_simple_directory(dir_path, 'bilatticeCount')
+            elif 'kallisto' in dir_name:
+                df_dir = process_complex_directory(dir_path, 'kallisto')
+            elif 'salmon' in dir_name:
+                df_dir = process_complex_directory(dir_path, 'salmon')
+            else:
+                continue
+
+            # Now loop through result files inside df_dir (dict: {filename: DataFrame})
+            for file, df in df_dir.items():
+                match = re.match(r"S(\d+)_", os.path.basename(file))
+                if not match:
+                    print(f"⚠️ Skipping file (no sample number): {file}")
+                    continue
+
+                sample_number = int(match.group(1))
+                if not (1 <= sample_number <= 8):
+                    print(f"⚠️ Invalid sample number {sample_number} in file: {file}")
+                    continue
+
+                # Merge with the correct ground truth DataFrame
+                gt_df = gene_tpm_dfs[sample_number - 1]
+                merged = pd.merge(df, gt_df, how="left", on="GeneID")
+                merged["source_file"] = os.path.basename(file)
+
+                # Append to correct sample list
+                all_samples[sample_number - 1].append(merged)
+
+    # Step 4: Save each sample's final merged DataFrame
+    for i, sample_dataframes in enumerate(all_samples):
+        sample_num = i + 1
+        if sample_dataframes:
+            combined = pd.concat(sample_dataframes, ignore_index=True)
+            output_path = os.path.join(outputs_path, f"beers{sample_num}.csv")
+            combined.to_csv(output_path, index=False, sep="\t")
+            print(f"✅ Saved: {output_path}")
+        else:
+            print(f"⚠️ No data found for sample {sample_num}, skipping.")
+
 
 if __name__ == "__main__":
     counts_path = 'genetic_data/counts'
     outputs_path = 'genetic_data/outputs'
-    process_seqcA(counts_path, outputs_path)
-    process_seqcB(counts_path, outputs_path)
-    # process_beers(counts_path, outputs_path)
+    mus_musculus_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/Mus_musculus.GRCm38.102.gtf')
+    homo_sapiens_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/gencode.v19.annotation.gtf')
+    process_seqcA(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts)
+    process_seqcB(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts)
+    process_beers(counts_path, outputs_path, gene_lengths_df=mus_musculus_gene_lenghts)
