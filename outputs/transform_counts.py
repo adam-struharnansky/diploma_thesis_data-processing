@@ -1,4 +1,3 @@
-
 import gzip
 import os
 import pandas as pd
@@ -117,7 +116,7 @@ def process_kallisto(filepath):
     df = pd.read_csv(filepath, sep="\t")
 
     # gene ID (ENSG) extraction from the target_id column
-    df['gene_id'] = df['target_id'].apply(lambda x: x.split('|')[1])
+    df['gene_id'] = df['target_id'].apply(lambda x: x.split('|')[1] if '|' in x and len(x.split('|')) > 1 else x)
 
     # Sum TPM values per gene
     gene_data = df.groupby('gene_id')['tpm'].sum().reset_index()
@@ -149,7 +148,7 @@ def process_rt_pcr(outputs_path):
 
     return selected_columns
 
-def process_gt_beers(file_name):
+def process_gt_beers(outputs_path):
     """
     Processes a ground truth BEERS2 parquet file.
     
@@ -162,7 +161,8 @@ def process_gt_beers(file_name):
     - Return a list of 8 gene-level TPM DataFrames (one for each sample)
     """
     # Load the data
-    df = pd.read_parquet(file_name)
+    file_path = os.path.join(outputs_path, 'beers.true_TPM.parquet')
+    df = pd.read_parquet(file_path)
 
     # Filter only those values that are in all_bias
     df_filtered = df[df['run'] ==  'all_bias']
@@ -187,8 +187,6 @@ def process_simple_directory(directory_path, tool_type, gene_lengths_df=None):
     all_dataframes = []
     
     for filename in os.listdir(directory_path):
-        if 'schweizer' in filename or 'sklar' in filename or 'hamacher' in filename:
-            continue
         if filename.endswith(".txt"):
             filepath = os.path.join(directory_path, filename)
             if os.path.getsize(filepath) == 0:
@@ -265,7 +263,7 @@ def process_seqcA(counts_path, outputs_path, gene_lengths_df=None):
 
 def process_seqcB(counts_path, outputs_path, gene_lengths_df=None):
     df = process_rt_pcr(outputs_path)
-    df = df['gene_id', 'RT_B_relative']
+    df = df[['gene_id', 'RT_B_relative']]
     for root, dirs, files in os.walk(counts_path):
         for dir_name in dirs:
             if dir_name.endswith("seqcB"):
@@ -288,10 +286,9 @@ def process_seqcB(counts_path, outputs_path, gene_lengths_df=None):
 
 def process_beers(counts_path, outputs_path, gene_lengths_df=None):
     # Step 1: Load ground truth TPMs per sample (list of 8 DataFrames)
-    gene_tpm_dfs = process_gt_beers(outputs_path)  # returns sample1 to sample8
+    all_samples = process_gt_beers(outputs_path)  # returns sample1 to sample8
 
-    # Step 2: Prepare one empty list for each sample (index 0 = sample 1, etc.)
-    all_samples = [[] for _ in range(8)]
+
 
     # Step 3: Traverse all tools' directories and process files
     for root, dirs, _ in os.walk(counts_path):
@@ -315,37 +312,38 @@ def process_beers(counts_path, outputs_path, gene_lengths_df=None):
             else:
                 continue
 
-            # Now loop through result files inside df_dir (dict: {filename: DataFrame})
-            for file, df in df_dir.items():
-                match = re.match(r"S(\d+)_", os.path.basename(file))
+            print(type(df_dir))
+            print(df_dir.head())
+            for col in df_dir.columns:
+                if col == "gene_id":
+                    continue
+
+                match = re.search(r"S(\d+)", col)
                 if not match:
-                    print(f"⚠️ Skipping file (no sample number): {file}")
+                    print(f"⚠️ Skipping column (no sample number): {col}")
                     continue
 
                 sample_number = int(match.group(1))
                 if not (1 <= sample_number <= 8):
-                    print(f"⚠️ Invalid sample number {sample_number} in file: {file}")
+                    print(f"⚠️ Invalid sample number in column: {col}")
                     continue
 
-                # Merge with the correct ground truth DataFrame
-                gt_df = gene_tpm_dfs[sample_number - 1]
-                merged = pd.merge(df, gt_df, how="left", on="GeneID")
-                merged["source_file"] = os.path.basename(file)
+                # Prepare just gene_id + this column
+                temp_df = df_dir[["gene_id", col]].copy()
 
-                # Append to correct sample list
-                all_samples[sample_number - 1].append(merged)
+                # Merge into the main sample-wide table
+                all_samples[sample_number - 1] = pd.merge(
+                    all_samples[sample_number - 1],
+                    temp_df,
+                    on="gene_id",
+                    how="left"
+                )
 
-    # Step 4: Save each sample's final merged DataFrame
-    for i, sample_dataframes in enumerate(all_samples):
-        sample_num = i + 1
-        if sample_dataframes:
-            combined = pd.concat(sample_dataframes, ignore_index=True)
-            output_path = os.path.join(outputs_path, f"beers{sample_num}.csv")
-            combined.to_csv(output_path, index=False, sep="\t")
-            print(f"✅ Saved: {output_path}")
-        else:
-            print(f"⚠️ No data found for sample {sample_num}, skipping.")
-
+    # Save each sample-wide DataFrame
+    for i, df in enumerate(all_samples):
+        output_path = os.path.join(outputs_path, f"beers{i + 1}.csv")
+        df.to_csv(output_path, sep="\t", index=False)
+        print(f"✅ Saved: {output_path}")
 
 if __name__ == "__main__":
     counts_path = 'genetic_data/counts'
