@@ -1,4 +1,4 @@
 #!/bin/bash
 
 # Download the file using wget
-wget -P ~/genetic_data/genomes/ https://ftp.ensembl.org/pub/release-77/fasta/rattus_norvegicus/dna/Rattus_norvegicus.Rnor_6.0.dna.primary_assembly.fa.gz
+wget -P ~/genetic_data/genomes/ https://ftp.ensembl.org/pub/release-77/fasta/rattus_norvegicus/dna/Rattus_norvegicus.Rnor_7.0.dna.primary_assembly.fa.gz

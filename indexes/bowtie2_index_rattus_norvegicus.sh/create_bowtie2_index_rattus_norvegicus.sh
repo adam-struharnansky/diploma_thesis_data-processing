@@ -7,7 +7,7 @@ conda activate bowtie2_env
 # Define variables
 THREADS=4
 GENOME_DIR=genetic_data/indexes/bowtie2_index_rattus_norvegicus
-GENOME_FASTA=genetic_data/genomes/Rattus_norvegicus.Rnor_6.0.dna.primary_assembly.fa.gz
+GENOME_FASTA=genetic_data/genomes/Rattus_norvegicus.Rnor_5.0.dna.primary_assembly.fa.gz
 
 # Function to unzip files if they are compressed
 unzip_if_needed() {
