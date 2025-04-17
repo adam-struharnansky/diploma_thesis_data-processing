@@ -8,7 +8,7 @@ conda activate star_env
 THREADS=4
 MAX_RAM=51539607552  # 48GB in bytes
 GENOME_DIR=genetic_data/indexes/star_index_rattus_norvegicus
-GENOME_FASTA=genetic_data/genomes/Rattus_norvegicus.Rnor_5.0.dna.primary_assembly.fa.gz
+GENOME_FASTA=genetic_data/genomes/Rattus_norvegicus.Rnor_5.0.dna.toplevel.fa.gz
 ANNOTATION_GTF=genetic_data/annotations/Rattus_norvegicus.Rnor_5.0.77.gtf.gz
 
 # Function to unzip files if they are compressed
