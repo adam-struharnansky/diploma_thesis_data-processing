@@ -5,7 +5,7 @@ source miniconda3/etc/profile.d/conda.sh
 conda activate kallisto_env
 
 # Set parameters
-TRANSCRIPTOME_FILE="genetic_data/transcriptomes/Rattus_norvegicus.Rnor_5.0.dna.toplevel.fa.gz"
+TRANSCRIPTOME_FILE="genetic_data/transcriptomes/Rattus_norvegicus.Rnor_5.0.cdna.all.fa.gz"
 OUTPUT_DIR="genetic_data/indexes/kallisto_index_rattus_norvegicus"
 INDEX_FILE="${OUTPUT_DIR}/Rattus_norvegicus.kallisto.idx"
 
