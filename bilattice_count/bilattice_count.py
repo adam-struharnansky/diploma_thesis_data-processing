@@ -854,7 +854,7 @@ def compute_results(config, annotations, gene_for_values, gene_against_values):
         if config.verbose and i % 5000 == 0 and i > 0:
             print(f'Processed {i} features')
             current_time = time.time()
-            print(f'Time: {previous_time - current_time}')
+            print(f'Time: {current_time - previous_time}')
             previous_time = current_time
     if config.verbose:
         print(f'All {annotations.shape[0]} features processed')

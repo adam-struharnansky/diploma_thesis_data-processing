@@ -7,7 +7,7 @@ conda activate bowtie2_env
 # Directories
 READS_DIR="genetic_data/reads/rat"
 OUTPUT_DIR="genetic_data/alignments/bowtie2_rat_all"
-INDEX="genetic_data/indexes/bowtie2_index_rattus_norvegicus/bowtie2_index_rattus_norvegicus"
+INDEX="genetic_data/indexes/bowtie2_index_rattus_norvegicus/bowtie2_rattus_norvegicus"
 
 # Create output directory if it doesn't exist
 mkdir -p "$OUTPUT_DIR"
