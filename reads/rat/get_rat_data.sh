@@ -5,7 +5,7 @@ source miniconda3/etc/profile.d/conda.sh
 conda activate sra_tools_env
 
 # Define output directory
-BASE_DIR=genetic_data/reads/rat_combined
+BASE_DIR=genetic_data/reads/rat
 mkdir -p "$BASE_DIR"
 
 # Define sample info: format => RNATYPE|SRR1[,SRR2]|ORGAN|SEX|AGE
