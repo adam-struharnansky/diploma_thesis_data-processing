@@ -17,13 +17,13 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
     echo "Processing $SAMPLE_NAME..."
 
     # Run HTSeq-count with different multimapped read options
-    htseq-count -f bam -r name -t exon -i gene_id \
+    htseq-count --paired-end -f bam -r name -t exon -i gene_id \
         "$BAM_FILE" "$GTF_FILE" > "$OUTPUT_DIR/${SAMPLE_NAME}_ignore.txt"
 
-    htseq-count -f bam -r name -t exon -i gene_id --nonunique all \
+    htseq-count --paired-end -f bam -r name -t exon -i gene_id --nonunique all \
         "$BAM_FILE" "$GTF_FILE" > "$OUTPUT_DIR/${SAMPLE_NAME}_all.txt"
 
-    htseq-count -f bam -r name -t exon -i gene_id --nonunique fraction \
+    htseq-count --paired-end -f bam -r name -t exon -i gene_id --nonunique fraction \
         "$BAM_FILE" "$GTF_FILE" > "$OUTPUT_DIR/${SAMPLE_NAME}_fraction.txt"
 
     echo "Finished processing $SAMPLE_NAME"

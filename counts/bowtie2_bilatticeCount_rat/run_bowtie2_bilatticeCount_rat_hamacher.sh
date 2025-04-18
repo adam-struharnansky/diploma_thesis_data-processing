@@ -38,7 +38,6 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
                          --output_file "$OUTPUT_DIR/${SAMPLE_NAME}_hamacher_p${P_SAFE}.txt" \
                          --t_norm "hamacher" \
                          --t_norm_param "$P" \
-                         --paired_end \
                          --strandness "$STRANDNESS" \
                          --seed 42 \
                          --verbose

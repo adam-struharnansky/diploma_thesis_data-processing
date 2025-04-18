@@ -28,7 +28,7 @@ for file in "$INPUT_DIR"/*_sorted.bam; do
         fi
 
         echo "Running featureCounts for $filename (strandness: $STRAND_OPTION)"
-        featureCounts -p -M -T "$THREADS" -s "$STRAND_OPTION" -a "$GTF_FILE" -o "$output_file" "$file"
+        featureCounts -M -T "$THREADS" -s "$STRAND_OPTION" -a "$GTF_FILE" -o "$output_file" "$file"
     fi
 done
 

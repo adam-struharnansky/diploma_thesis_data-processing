@@ -44,7 +44,6 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
                          --output_file "$OUTPUT_DIR/${SAMPLE_NAME}_schweizer_sklar_p${P_SAFE}.txt" \
                          --t_norm "schweizer_sklar" \
                          --t_norm_param "$P" \
-                         --paired_end \
                          --strandness "$STRANDNESS" \
                          --seed 42 \
                          --verbose
