@@ -878,10 +878,12 @@ def compute_results(config, annotations, gene_for_values, gene_against_values):
         'tpm': 'sum'
     }).reset_index()
 
+    '''
     with open(config.output_file, 'w') as file:
         file.write(f"{config.grouping_feature}\tCount\tTPM\n")
         for i, row in grouped_df.iterrows():
             file.write(f"{row['grouping_feature']}\t{int(row['count'])}\t{row['tpm']:.4f}\n")
+    '''
 
 
 def main():
