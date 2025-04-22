@@ -220,6 +220,7 @@ def process_annotation_file(config):
 
     gtf_df = pd.concat(chunks, ignore_index=True)
     gtf_df.columns = ['seqname', 'start', 'end', 'strand', 'feature' ,'grouping_feature']
+    gtf_df = gtf_df[gtf_df['grouping_feature'].isin(["ENSG00000188976.6", "ENSG00000187961.9"])]
     if config.verbose:
         print(f'Using {gtf_df.shape[0]} features of type {config.feature}')
     return gtf_df
@@ -834,6 +835,8 @@ def compute_results(config, annotations, gene_for_values, gene_against_values):
             agg_against = t_norm_batch(config, agg_against, against_agg[i, :])
 
         # Decision
+        print(f"agg_for: {agg_for}")
+        print(f"agg_against: {agg_against}")
         for i in range(len(agg_for)):
             if agg_for[i] < agg_against[i]:
                 return i
@@ -888,6 +891,11 @@ def main():
     trees = create_interval_trees(config, annotations)
     scaling_factor, lowest_value = scaling_factor_computation(config)
     gene_for_values, gene_against_values = process_alignment_file(config, annotations, trees, lowest_value, scaling_factor)
+    # to be removed
+    target_genes = {"ENSG00000188976.6", "ENSG00000187961.9"}
+    gene_for_values = {k: v for k, v in gene_for_values.items() if k in target_genes}
+    gene_against_values = {k: v for k, v in gene_against_values.items() if k in target_genes}
+    # until here
     compute_results(config, annotations, gene_for_values, gene_against_values)
     end_time = time.time()
     if config.verbose:
