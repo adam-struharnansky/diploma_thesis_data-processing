@@ -6,7 +6,7 @@ conda activate bilattice_env
 
 # Set parameters
 INPUT_DIR="genetic_data/alignments/bowtie2_rat_all"
-GTF_MIRNA="genetic_data/annotations/miRNA_Rattus_norvegicus.Rnor_5.0.77.gtf.gz"
+GTF_MIRNA="genetic_data/annotations/miRNA_Rattus_norvegicus.Rnor_5.0.77.gtf"
 OUTPUT_DIR="genetic_data/counts/bowtie2_bilatticeCount_rat"
 SCRIPT="genetic_data/bilattice_count/bilattice_count.py"
 
