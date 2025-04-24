@@ -28,6 +28,7 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
 
         STRANDNESS="stranded"
         GTF_FILE="$GTF_MIRNA"
+        FEATURE="gene"
 
         for P in "${P_VALUES[@]}"; do
             echo " → Using Hamacher t-norm with p=$P"
@@ -40,6 +41,7 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
                 --t_norm "hamacher" \
                 --t_norm_param "$P" \
                 --strandness "$STRANDNESS" \
+                --feature "$FEATURE" \
                 --seed 42 \
                 --verbose
         done

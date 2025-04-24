@@ -33,9 +33,11 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
     if [[ "$SAMPLE_NAME" == *_mirna_* ]]; then
         STRANDNESS="stranded"
         GTF_FILE="$GTF_MIRNA"
+        FEATURE="gene"
     else
         STRANDNESS="unstranded"
         GTF_FILE="$GTF_GENE"
+        FEATURE="exon"
     fi
 
     for P in "${P_VALUES[@]}"; do
@@ -49,6 +51,7 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
             --t_norm "schweizer_sklar" \
             --t_norm_param "$P" \
             --strandness "$STRANDNESS" \
+            --feature "$FEATURE" \
             --seed 42 \
             --verbose
     done

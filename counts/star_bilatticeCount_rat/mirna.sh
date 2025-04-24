@@ -22,6 +22,7 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
 
         STRANDNESS="stranded"
         GTF_FILE="$GTF_MIRNA"
+        FEATURE="gene"
 
         for T_NORM in "${T_NORMS[@]}"; do
             echo " → Using t-norm: $T_NORM"
@@ -32,6 +33,7 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
                 --output_file "$OUTPUT_DIR/${SAMPLE_NAME}_${T_NORM}.txt" \
                 --t_norm "$T_NORM" \
                 --strandness "$STRANDNESS" \
+                --feature "$FEATURE" \
                 --seed 42 \
                 --verbose
         done

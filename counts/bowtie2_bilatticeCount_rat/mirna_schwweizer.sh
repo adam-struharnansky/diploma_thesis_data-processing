@@ -32,6 +32,8 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
 
         STRANDNESS="stranded"
         GTF_FILE="$GTF_MIRNA"
+        FEATURE="gene"
+
 
         for P in "${P_VALUES[@]}"; do
             echo " → Using Schweizer–Sklar t-norm with p=$P"
@@ -44,6 +46,7 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
                 --t_norm "schweizer_sklar" \
                 --t_norm_param "$P" \
                 --strandness "$STRANDNESS" \
+                --feature "$FEATURE" \
                 --seed 42 \
                 --verbose
         done
