@@ -201,9 +201,16 @@ def process_annotation_file(config):
 
         # Extract grouping_feature (e.g., gene_id) and feature_id (e.g., exon_id or transcript_id)
         filtered_chunk['grouping_feature'] = attr_dicts.apply(lambda d: d.get(config.grouping_feature))
-        filtered_chunk['feature'] = attr_dicts.apply(
-            lambda d: d.get(config.feature) if config.feature in d else f"{d.get(config.grouping_feature)}_{filtered_chunk.index}"
-        )
+
+        def same_prefix(a, b):
+            return a.split('_')[0] == b.split('_')[0]
+
+        if config.feature == config.grouping_feature or same_prefix(config.feature, config.grouping_feature):
+            filtered_chunk['feature'] = filtered_chunk['grouping_feature']
+        else:
+            filtered_chunk['feature'] = attr_dicts.apply(
+                lambda d: d.get(config.feature) if config.feature in d else f"{d.get(config.grouping_feature)}_{filtered_chunk.index}"
+            )
 
         # Drop rows missing grouping_feature (critical for grouping later)
         filtered_chunk = filtered_chunk.dropna(subset=['grouping_feature'])
@@ -220,7 +227,6 @@ def process_annotation_file(config):
 
     gtf_df = pd.concat(chunks, ignore_index=True)
     gtf_df.columns = ['seqname', 'start', 'end', 'strand', 'feature' ,'grouping_feature']
-    gtf_df = gtf_df[gtf_df['grouping_feature'].isin(["ENSG00000188976.6", "ENSG00000187961.9"])]
     if config.verbose:
         print(f'Using {gtf_df.shape[0]} features of type {config.feature}')
     return gtf_df
@@ -748,6 +754,8 @@ def process_alignment_file(config, annotations, trees, lowest_value, scaling_fac
         previous_query_name = ''
         alignment_buffer = []
         for i, alignment in enumerate(alignment_file):
+            if config.verbose and (i % 1000000 == 0) and (i > 0):
+                print(f'Processed {i} reads from alignment file')
             if alignment.query_name != previous_query_name:
                 process_read(alignment_buffer)
                 alignment_buffer = []
@@ -757,9 +765,6 @@ def process_alignment_file(config, annotations, trees, lowest_value, scaling_fac
             if config.handle_unmapped_mate == UnmappedMateHandling.DISCARD and alignment.mate_is_unmapped:
                 continue
             alignment_buffer.append(alignment)
-
-            if config.verbose and (i % 1000000 == 0) and (i > 0):
-                print(f'Processed {i} reads from alignment file')
         if alignment_buffer: # process the last read
             process_read(alignment_buffer)
         if config.verbose and i > 0:
@@ -878,12 +883,10 @@ def compute_results(config, annotations, gene_for_values, gene_against_values):
         'tpm': 'sum'
     }).reset_index()
 
-    '''
     with open(config.output_file, 'w') as file:
         file.write(f"{config.grouping_feature}\tCount\tTPM\n")
         for i, row in grouped_df.iterrows():
             file.write(f"{row['grouping_feature']}\t{int(row['count'])}\t{row['tpm']:.4f}\n")
-    '''
 
 
 def main():
@@ -893,11 +896,6 @@ def main():
     trees = create_interval_trees(config, annotations)
     scaling_factor, lowest_value = scaling_factor_computation(config)
     gene_for_values, gene_against_values = process_alignment_file(config, annotations, trees, lowest_value, scaling_factor)
-    # to be removed
-    target_genes = {"ENSG00000188976.6", "ENSG00000187961.9"}
-    gene_for_values = {k: v for k, v in gene_for_values.items() if k in target_genes}
-    gene_against_values = {k: v for k, v in gene_against_values.items() if k in target_genes}
-    # until here
     compute_results(config, annotations, gene_for_values, gene_against_values)
     end_time = time.time()
     if config.verbose:
