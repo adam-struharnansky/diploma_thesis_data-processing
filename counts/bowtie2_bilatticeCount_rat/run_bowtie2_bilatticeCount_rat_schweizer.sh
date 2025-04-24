@@ -6,7 +6,8 @@ conda activate bilattice_env
 
 # Set parameters
 INPUT_DIR="genetic_data/alignments/bowtie2_rat_all" 
-GTF_FILE="genetic_data/annotations/Rattus_norvegicus.Rnor_5.0.77.gtf.gz"
+GTF_GENE="genetic_data/annotations/Rattus_norvegicus.Rnor_5.0.77.gtf.gz"
+GTF_MIRNA="genetic_data/annotations/miRNA_Rattus_norvegicus.Rnor_5.0.77.gtf.gz"
 OUTPUT_DIR="genetic_data/counts/bowtie2_bilatticeCount_rat"
 SCRIPT="genetic_data/bilattice_count/bilattice_count.py" 
 
@@ -28,15 +29,17 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
     SAMPLE_NAME=$(basename "$BAM_FILE" _sorted_by_name.bam)
     echo "Processing $SAMPLE_NAME with Schweizer–Sklar t-norms..."
 
-    # Detect strandness
+    # Detect strandness and GTF source
     if [[ "$SAMPLE_NAME" == *_mirna_* ]]; then
         STRANDNESS="stranded"
+        GTF_FILE="$GTF_MIRNA"
     else
         STRANDNESS="unstranded"
+        GTF_FILE="$GTF_GENE"
     fi
 
     for P in "${P_VALUES[@]}"; do
-        echo "Using Schweizer–Sklar t-norm with p=$P"
+        echo "using Schweizer-Sklar t-norm parameter p=$P"
         P_SAFE=$(format_p_for_filename "$P")
 
         python "$SCRIPT" --annotation_file "$GTF_FILE" \
@@ -52,4 +55,4 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
     echo "Finished processing $SAMPLE_NAME"
 done
 
-echo "All files processed!"
+echo "All samples processed!"
