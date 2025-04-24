@@ -840,8 +840,6 @@ def compute_results(config, annotations, gene_for_values, gene_against_values):
             agg_against = t_norm_batch(config, agg_against, against_agg[i, :])
 
         # Decision
-        print(f"agg_for: {agg_for}")
-        print(f"agg_against: {agg_against}")
         for i in range(len(agg_for)):
             if agg_for[i] < agg_against[i]:
                 return i
