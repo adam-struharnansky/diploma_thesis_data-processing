@@ -12,3 +12,6 @@
 
 # Don't ignore the .gitignore file itself
 !.gitignore
+
+# Keep also the miRNA - RNA pairs
+!mirna_rna_pairs.csv
