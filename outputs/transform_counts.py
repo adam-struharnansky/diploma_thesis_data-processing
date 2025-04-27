@@ -345,6 +345,101 @@ def process_beers(counts_path, outputs_path, gene_lengths_df=None):
         df.to_csv(output_path, sep="\t", index=False)
         print(f"✅ Saved: {output_path}")
 
+
+def process_rat_directory(directory_path, tool_type, gene_lengths_df=None, main_table=None):
+    all_dataframes = []
+    all_mirna_dataframes = []
+    
+    for filename in os.listdir(directory_path):
+        if filename.endswith(".txt"):
+            filepath = os.path.join(directory_path, filename)
+            if os.path.getsize(filepath) == 0:
+                continue
+            df = pd.DataFrame()
+            if tool_type == 'HTSeq':
+                df = process_htseq(filepath, gene_lengths_df=gene_lengths_df)
+            elif tool_type == 'featureCounts':
+                df = process_featureCounts(filepath)
+            elif tool_type == 'bilatticeCount':
+                df = process_bilatticeCount(filepath)
+            
+            if 'bowtie2' in filepath:
+                df = df.rename(columns={"TPM": f'bowtie2_{tool_type}_{filename[:-4]}'})  # Rename 'count' column to the filename
+            elif 'star' in filepath:
+                df = df.rename(columns={"TPM": f'star_{tool_type}_{filename[:-4]}'})  # Rename 'count' column to the filename
+
+            if 'mirna' in filename:
+                df = pd.merge(main_table, df, left_on='mirna_ensamble_id', right_on='gene_id', how='left')
+                all_mirna_dataframes.append(df)
+            else:
+                df = pd.merge(main_table, df, left_on='gene_ensamble_id', right_on='gene_id', how='left')
+                all_dataframes.append(df)
+    if all_dataframes:
+        result_df = all_dataframes[0]
+        result_mirna_df = all_mirna_dataframes[0]
+        for df in all_dataframes[1:]:
+            result_df = pd.merge(result_df, df, on="gene_id", how="outer")
+        for df in all_mirna_dataframes[1:]:
+            result_mirna_df = pd.merge(result_mirna_df, df, on="gene_id", how="outer")
+        return result_df, result_mirna_df
+    else:
+        return pd.DataFrame(columns=['gene_id'])  # Return an empty DataFrame if no files were processed
+    
+
+def process_rat(counts_path, outputs_path, gene_lengths_df=None):
+    main_table = pd.read_csv(os.path.join(outputs_path, 'mirna_rna_pairs.csv'), sep="\t")
+
+    for root, dirs, _ in os.walk(counts_path):
+        for dir_name in dirs:
+            if not dir_name.endswith("rat"):
+                continue
+
+            dir_path = os.path.join(root, dir_name)
+            df_dir = pd.DataFrame()
+            # Select the tool-specific processor
+            if 'featureCounts' in dir_name:
+                df_dir = process_simple_directory(dir_path, 'featureCounts')
+            elif 'HTSeq' in dir_name:
+                continue
+                #df_dir = process_simple_directory(dir_path, 'HTSeq', gene_lengths_df=gene_lengths_df)
+            elif 'bilatticeCount' in dir_name:
+                df_dir = process_simple_directory(dir_path, 'bilatticeCount')
+            else:
+                continue
+
+            print(type(df_dir))
+            print(df_dir.head())
+            for col in df_dir.columns:
+                if col == "gene_id":
+                    continue
+
+                match = re.search(r"S(\d+)", col)
+                if not match:
+                    print(f"⚠️ Skipping column (no sample number): {col}")
+                    continue
+
+                sample_number = int(match.group(1))
+                if not (1 <= sample_number <= 8):
+                    print(f"⚠️ Invalid sample number in column: {col}")
+                    continue
+
+                # Prepare just gene_id + this column
+                temp_df = df_dir[["gene_id", col]].copy()
+
+                # Merge into the main sample-wide table
+                all_samples[sample_number - 1] = pd.merge(
+                    all_samples[sample_number - 1],
+                    temp_df,
+                    on="gene_id",
+                    how="left"
+                )
+
+    # Save each sample-wide DataFrame
+    for i, df in enumerate(all_samples):
+        output_path = os.path.join(outputs_path, f"rat{i + 1}.csv")
+        df.to_csv(output_path, sep="\t", index=False)
+
+
 if __name__ == "__main__":
     counts_path = 'genetic_data/counts'
     outputs_path = 'genetic_data/outputs'
