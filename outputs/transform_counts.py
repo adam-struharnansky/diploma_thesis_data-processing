@@ -213,7 +213,7 @@ def process_simple_directory(directory_path, tool_type, gene_lengths_df=None):
     else:
         return pd.DataFrame(columns=['gene_id'])  # Return an empty DataFrame if no files were processed
     
-def process_complex_directory(directory_path, tool_type, gene_lengths_df=None):
+def process_complex_directory(directory_path, tool_type):
     all_dataframes = []
     for subdir in os.listdir(directory_path):
         subdir_path = os.path.join(directory_path, subdir)
@@ -300,10 +300,13 @@ def process_beers(counts_path, outputs_path, gene_lengths_df=None):
 
             # Select the tool-specific processor
             if 'featureCounts' in dir_name:
+                continue
                 df_dir = process_simple_directory(dir_path, 'featureCounts')
             elif 'HTSeq' in dir_name:
+                continue
                 df_dir = process_simple_directory(dir_path, 'HTSeq', gene_lengths_df=gene_lengths_df)
             elif 'bilatticeCount' in dir_name:
+                continue
                 df_dir = process_simple_directory(dir_path, 'bilatticeCount')
             elif 'kallisto' in dir_name:
                 df_dir = process_complex_directory(dir_path, 'kallisto')
@@ -445,6 +448,6 @@ if __name__ == "__main__":
     outputs_path = 'genetic_data/outputs'
     mus_musculus_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/Mus_musculus.GRCm38.102.gtf')
     homo_sapiens_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/gencode.v19.annotation.gtf')
-    process_seqcA(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts)
-    process_seqcB(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts)
+    #process_seqcA(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts)
+    #process_seqcB(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts)
     process_beers(counts_path, outputs_path, gene_lengths_df=mus_musculus_gene_lenghts)
