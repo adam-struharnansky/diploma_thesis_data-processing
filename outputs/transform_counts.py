@@ -273,7 +273,7 @@ def process_complex_directory(directory_path, tool_type, transcript_gene_mapping
     else:
         return pd.DataFrame(columns=['gene_id'])  # Return an empty DataFrame if no files were processed
 
-def process_seqcA(counts_path, outputs_path, gene_lengths_df=None):
+def process_seqcA(counts_path, outputs_path, gene_lengths_df=None, transcript_gene_mappings=None):
     df = process_rt_pcr(outputs_path)
     df = df[['gene_id', 'RT_A_relative']]
     for dir_name in os.listdir(counts_path):
@@ -287,15 +287,15 @@ def process_seqcA(counts_path, outputs_path, gene_lengths_df=None):
             elif 'bilatticeCount' in dir_name:
                 df_dir = process_simple_directory(dir_path, 'bilatticeCount')
             elif 'kallisto' in dir_name:
-                df_dir = process_complex_directory(dir_path, 'kallisto')
+                df_dir = process_complex_directory(dir_path, 'kallisto', transcript_gene_mappings=transcript_gene_mappings)
             elif 'salmon' in dir_name:
-                df_dir = process_complex_directory(dir_path, 'salmon')
+                df_dir = process_complex_directory(dir_path, 'salmon', transcript_gene_mappings=transcript_gene_mappings)
 
             # Merging the processed data with the main dataframe
             df = pd.merge(df, df_dir, on="gene_id", how="left")
     df.to_csv(os.path.join(outputs_path, 'seqcA.csv'), index=False)
 
-def process_seqcB(counts_path, outputs_path, gene_lengths_df=None):
+def process_seqcB(counts_path, outputs_path, gene_lengths_df=None, transcript_gene_mappings=None):
     df = process_rt_pcr(outputs_path)
     df = df[['gene_id', 'RT_B_relative']]
     for root, dirs, files in os.walk(counts_path):
@@ -309,9 +309,9 @@ def process_seqcB(counts_path, outputs_path, gene_lengths_df=None):
                 elif 'bilatticeCount' in dir_name:
                     df_dir = process_simple_directory(dir_path, 'bilatticeCount')
                 elif 'kallisto' in dir_name:
-                    df_dir = process_complex_directory(dir_path, 'kallisto')
+                    df_dir = process_complex_directory(dir_path, 'kallisto', transcript_gene_mappings=transcript_gene_mappings)
                 elif 'salmon' in dir_name:
-                    df_dir = process_complex_directory(dir_path, 'salmon')
+                    df_dir = process_complex_directory(dir_path, 'salmon', transcript_gene_mappings=transcript_gene_mappings)
 
                 # Merging the processed data with the main dataframe
                 df = pd.merge(df, df_dir, on="gene_id", how="left")
@@ -334,13 +334,10 @@ def process_beers(counts_path, outputs_path, gene_lengths_df=None, transcript_ge
 
             # Select the tool-specific processor
             if 'featureCounts' in dir_name:
-                continue
                 df_dir = process_simple_directory(dir_path, 'featureCounts')
             elif 'HTSeq' in dir_name:
-                continue
                 df_dir = process_simple_directory(dir_path, 'HTSeq', gene_lengths_df=gene_lengths_df)
             elif 'bilatticeCount' in dir_name:
-                continue
                 df_dir = process_simple_directory(dir_path, 'bilatticeCount')
             elif 'kallisto' in dir_name:
                 df_dir = process_complex_directory(dir_path, 'kallisto', transcript_gene_mappings=transcript_gene_mappings)
@@ -349,8 +346,6 @@ def process_beers(counts_path, outputs_path, gene_lengths_df=None, transcript_ge
             else:
                 continue
 
-            print(type(df_dir))
-            print(df_dir.head())
             for col in df_dir.columns:
                 if col == "gene_id":
                     continue
@@ -483,8 +478,8 @@ if __name__ == "__main__":
     outputs_path = 'genetic_data/outputs'
     mus_musculus_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/Mus_musculus.GRCm38.102.gtf')
     mus_musculus_mappings = get_transcript_gene_mapping('genetic_data/annotations/Mus_musculus.GRCm38.102.gtf')
-    #homo_sapiens_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/gencode.v19.annotation.gtf')
-    #homo_sapines_mappings = get_transcript_gene_mapping('genetic_data/annotations/gencode.v19.annotation.gtf')
-    #process_seqcA(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts)
-    #process_seqcB(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts)
+    homo_sapiens_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/gencode.v19.annotation.gtf')
+    homo_sapines_mappings = get_transcript_gene_mapping('genetic_data/annotations/gencode.v19.annotation.gtf')
+    process_seqcA(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts, transcript_gene_mappings=homo_sapines_mappings)
+    process_seqcB(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts, transcript_gene_mappings=homo_sapines_mappings)
     process_beers(counts_path, outputs_path, gene_lengths_df=mus_musculus_gene_lenghts, transcript_gene_mappings=mus_musculus_mappings)
