@@ -8,6 +8,32 @@ def strip_version(ensembl_id):
     return ensembl_id.split('.')[0]
 
 
+import pandas as pd
+
+def get_transcript_gene_mapping(filepath):
+    mapping = []
+    with open(filepath, 'r') as f:
+        for line in f:
+            if line.startswith("#"):
+                continue
+            fields = line.strip().split("\t")
+            if fields[2] != "transcript":
+                continue
+            attributes = fields[8]
+            gene_id = None
+            transcript_id = None
+            for attribute in attributes.split(";"):
+                attribute = attribute.strip()
+                if attribute.startswith("gene_id"):
+                    gene_id = attribute.split('"')[1]
+                if attribute.startswith("transcript_id"):
+                    transcript_id = attribute.split('"')[1]
+            if gene_id and transcript_id:
+                mapping.append((transcript_id, gene_id))
+    mapping_df = pd.DataFrame(mapping, columns=["transcript_id", "gene_id"])
+    return mapping_df
+
+
 def get_gene_lengths_from_gtf(filepath):
     """
     Parse a GTF file and return a DataFrame with gene_id and their exon-based lengths.
@@ -213,7 +239,7 @@ def process_simple_directory(directory_path, tool_type, gene_lengths_df=None):
     else:
         return pd.DataFrame(columns=['gene_id'])  # Return an empty DataFrame if no files were processed
     
-def process_complex_directory(directory_path, tool_type):
+def process_complex_directory(directory_path, tool_type, transcript_gene_mappings=None):
     all_dataframes = []
     for subdir in os.listdir(directory_path):
         subdir_path = os.path.join(directory_path, subdir)
@@ -228,6 +254,14 @@ def process_complex_directory(directory_path, tool_type):
                 if os.path.exists(filepath):
                     df = process_kallisto(filepath)
             if not df.empty:
+                if transcript_gene_mappings is not None:
+                    df = df.merge(transcript_gene_mappings, left_on="gene_id", right_on="transcript_id", how="left")
+                    df["gene_id"] = df["gene_id_y"]  # use mapped gene_id
+                    df = df.drop(["transcript_id", "gene_id_x", "gene_id_y"], axis=1)
+
+                    # Aggregate if needed (many transcripts -> one gene)
+                    agg_columns = [col for col in df.columns if col != "gene_id"]
+                    df = df.groupby("gene_id")[agg_columns].sum().reset_index()
                 df = df.rename(columns={"TPM": f'{tool_type}_{subdir}'})
                 all_dataframes.append(df)
     
@@ -284,7 +318,7 @@ def process_seqcB(counts_path, outputs_path, gene_lengths_df=None):
     df.to_csv(os.path.join(outputs_path, 'seqcB.csv'), index=False)
 
 
-def process_beers(counts_path, outputs_path, gene_lengths_df=None):
+def process_beers(counts_path, outputs_path, gene_lengths_df=None, transcript_gene_mappings=None):
     # Step 1: Load ground truth TPMs per sample (list of 8 DataFrames)
     all_samples = process_gt_beers(outputs_path)  # returns sample1 to sample8
 
@@ -309,9 +343,9 @@ def process_beers(counts_path, outputs_path, gene_lengths_df=None):
                 continue
                 df_dir = process_simple_directory(dir_path, 'bilatticeCount')
             elif 'kallisto' in dir_name:
-                df_dir = process_complex_directory(dir_path, 'kallisto')
+                df_dir = process_complex_directory(dir_path, 'kallisto', transcript_gene_mappings=transcript_gene_mappings)
             elif 'salmon' in dir_name:
-                df_dir = process_complex_directory(dir_path, 'salmon')
+                df_dir = process_complex_directory(dir_path, 'salmon', transcript_gene_mappings=transcript_gene_mappings)
             else:
                 continue
 
@@ -448,7 +482,9 @@ if __name__ == "__main__":
     counts_path = 'genetic_data/counts'
     outputs_path = 'genetic_data/outputs'
     mus_musculus_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/Mus_musculus.GRCm38.102.gtf')
-    homo_sapiens_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/gencode.v19.annotation.gtf')
+    mus_musculus_mappings = get_transcript_gene_mapping('genetic_data/annotations/Mus_musculus.GRCm38.102.gtf')
+    #homo_sapiens_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/gencode.v19.annotation.gtf')
+    #homo_sapines_mappings = get_transcript_gene_mapping('genetic_data/annotations/gencode.v19.annotation.gtf')
     #process_seqcA(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts)
     #process_seqcB(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts)
-    process_beers(counts_path, outputs_path, gene_lengths_df=mus_musculus_gene_lenghts)
+    process_beers(counts_path, outputs_path, gene_lengths_df=mus_musculus_gene_lenghts, transcript_gene_mappings=mus_musculus_mappings)
