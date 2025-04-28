@@ -341,6 +341,7 @@ def process_beers(counts_path, outputs_path, gene_lengths_df=None):
                     on="gene_id",
                     how="left"
                 )
+                print(all_samples[sample_number - 1].head())
 
     # Save each sample-wide DataFrame
     for i, df in enumerate(all_samples):
