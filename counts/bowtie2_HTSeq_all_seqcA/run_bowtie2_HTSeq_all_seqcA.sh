@@ -1,17 +1,20 @@
 #!/bin/bash
 
-# Activate conda enviroment
+# Conda enviroment activation
 source miniconda3/etc/profile.d/conda.sh
 conda activate htseq_env
 
-# Set parameters
+# File paths setting
 INPUT_DIR="genetic_data/alignments/bowtie2_seqcA_all" 
 GTF_FILE="genetic_data/annotations/gencode.v19.annotation.gtf.gz"
 OUTPUT_DIR="genetic_data/counts/bowtie2_HTSeq_all_seqcA"
 
-# Loop through name sorted BAM files
+# Output directory creation if nonexistence
+mkdir -p "$OUTPUT_DIR"
+
+# Loop through name-sorted BAM files
 for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
-    # Extract the sample name (removes the directory path and suffix)
+    # Sample name extraction
     SAMPLE_NAME=$(basename "$BAM_FILE" _sorted_by_name.bam)
 
     echo "Processing $SAMPLE_NAME..."
@@ -29,4 +32,4 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
     echo "Finished processing $SAMPLE_NAME"
 done
 
-echo "All files processed!"
+echo "OK, all files processed!"

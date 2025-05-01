@@ -1,22 +1,22 @@
 #!/bin/bash
 
-# Activate conda environment
+# Conda enviroment activation
 source miniconda3/etc/profile.d/conda.sh
 conda activate htseq_env
 
-# Set parameters
+# File paths setting
 INPUT_DIR="genetic_data/alignments/bowtie2_beers_all_bias_all"
 GTF_GENE="genetic_data/annotations/Mus_musculus.GRCm38.102.gtf.gz"
 GTF_MIRNA="genetic_data/annotations/miRNA_Mus_musculus.GRCm38.102.gtf.gz"
 OUTPUT_DIR="genetic_data/counts/bowtie2_HTSeq_beers_all_bias"
 
-# Create output directory if it doesn't exist
+# Output directory creation if nonexistence
 mkdir -p "$OUTPUT_DIR"
 
 # Loop through name-sorted BAM files
 for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
+    # Sample name extraction
     SAMPLE_NAME=$(basename "$BAM_FILE" _sorted_by_name.bam)
-    echo "Processing $SAMPLE_NAME..."
 
     # Choose GTF file based on sample type
     if [[ "$SAMPLE_NAME" == *_mirna_* ]]; then
@@ -38,4 +38,4 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
     echo "Finished processing $SAMPLE_NAME"
 done
 
-echo "All files processed!"
+echo "OK, all files processed!"

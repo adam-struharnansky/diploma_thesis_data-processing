@@ -1,31 +1,36 @@
 #!/bin/bash
 
-# Activate conda environment
+# Conda enviroment activation
 source miniconda3/etc/profile.d/conda.sh
 conda activate bilattice_env
 
-# Set parameters
+# File paths setting
 INPUT_DIR="genetic_data/alignments/bowtie2_beers_all_bias_all" 
 GTF_FILE="genetic_data/annotations/Mus_musculus.GRCm38.102.gtf.gz"
 OUTPUT_DIR="genetic_data/counts/bowtie2_bilatticeCount_beers_all_bias"
 SCRIPT="genetic_data/bilattice_count/bilattice_count.py" 
 
-# Hamacher t-norm parameters to try (1 - product, infinity - minimum)
+# Output directory creation if nonexistence
+mkdir -p "$OUTPUT_DIR"
+
+# Parameter setting
 P_VALUES=(0.0 0.2 0.5 2.0 5.0 10.0 20.0)
 
+# Name formatting function
 format_p_for_filename() {
     local p=$1
     echo "$(echo $p | sed 's/\.//')"
 }
 
-# Loop through BAM files
+# Loop through name-sorted BAM files
 for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
+    # Sample name extraction
     SAMPLE_NAME=$(basename "$BAM_FILE" _sorted_by_name.bam)
-    echo "Processing $SAMPLE_NAME with Hamacher t-norms..."
 
+    # Loop through all parameter settings
     for P in "${P_VALUES[@]}"; do
-        echo "Using Hamacher t-norm with p=$P"
         P_SAFE=$(format_p_for_filename "$P")
+        # bilatticeCount run with given parameters
         python "$SCRIPT" --annotation_file "$GTF_FILE" \
                          --alignments_file "$BAM_FILE" \
                          --output_file "$OUTPUT_DIR/${SAMPLE_NAME}_hamacher_p${P_SAFE}.txt" \
@@ -40,4 +45,4 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
     echo "Finished processing $SAMPLE_NAME"
 done
 
-echo "All files processed!"
+echo "OK, ll files processed!"

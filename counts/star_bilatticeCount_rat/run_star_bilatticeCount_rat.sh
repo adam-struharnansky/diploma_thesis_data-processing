@@ -1,26 +1,28 @@
 #!/bin/bash
 
-# Activate conda environment
+# Conda enviroment activation
 source miniconda3/etc/profile.d/conda.sh
 conda activate bilattice_env
 
-# Set parameters
+# File paths setting
 INPUT_DIR="genetic_data/alignments/star_rat_all"
 GTF_GENE="genetic_data/annotations/Rattus_norvegicus.Rnor_5.0.77.gtf.gz"
 GTF_MIRNA="genetic_data/annotations/miRNA_Rattus_norvegicus.Rnor_5.0.77.gtf"
 OUTPUT_DIR="genetic_data/counts/star_bilatticeCount_rat"
 SCRIPT="genetic_data/bilattice_count/bilattice_count.py"
 
-# List of basic t-norms
+# Output directory creation if nonexistence
+mkdir -p "$OUTPUT_DIR"
+
+# Parameter setting
 T_NORMS=("drastic" "product" "minimum" "Łukasiewicz")
 
 # Loop through name-sorted BAM files
 for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
+    # Sample name extraction
     SAMPLE_NAME=$(basename "$BAM_FILE" _sorted_by_name.bam)
 
-    echo "Processing $SAMPLE_NAME with basic t-norms..."
-
-    # Detect strandness and choose correct GTF file
+    # Strandness, annotation file and feature choosing
     if [[ "$SAMPLE_NAME" == *_mirna_* ]]; then
         STRANDNESS="stranded"
         GTF_FILE="$GTF_MIRNA"
@@ -31,9 +33,9 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
         FEATURE="exon"
     fi
 
+    # Loop through all parameter settings
     for T_NORM in "${T_NORMS[@]}"; do
-        echo "Using t-norm: $T_NORM"
-
+        # bilatticeCount run with given parameters
         python "$SCRIPT" \
             --annotation_file "$GTF_FILE" \
             --alignments_file "$BAM_FILE" \
@@ -48,4 +50,4 @@ for BAM_FILE in "$INPUT_DIR"/*_sorted_by_name.bam; do
     echo "Finished processing $SAMPLE_NAME"
 done
 
-echo "All basic t-norm STAR-based processing complete!"
+echo "OK, all files processed!"
