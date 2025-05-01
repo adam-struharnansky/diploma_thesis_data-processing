@@ -14,6 +14,9 @@ from enum import Enum
 from intervaltree import Interval, IntervalTree
 
 
+EPSILON = 1e-5
+
+
 class TNorm(Enum):
     DRASTIC = 'drastic'
     PRODUCT = 'product'
@@ -97,11 +100,12 @@ def parse_arguments():
         UserWarning: If any input file does not have an expected suffix.
     """
 
+    # setting argument parser
     parser = argparse.ArgumentParser(description="Gene expression counter tool.")
     parser.add_argument("--annotation_file", type=str, required=True, help="Path to the annotation file (GTF format).")
     parser.add_argument("--alignments_file", type=str, required=True, help="Path to the alignments file (BAM format).")
     parser.add_argument("--output_file", type=str, required=True, help="Name of the output file.")
-    parser.add_argument("--investigated_genes", type=str, default=None, help="File with investigated genes. Default: all genes.")
+    parser.add_argument("--investigated_genes", type=str, default=None, help="File with investigated genes. Default: all genes. Not implemented yet")
     parser.add_argument("--chunk_size", type=int, default=50000, help="Size of chunks for processing data.")
     parser.add_argument("--t_norm", type=TNorm, choices=list(TNorm), default=TNorm.PRODUCT,
                         help="Type of t-norm to use. Choices: drastic, product, minimum, Łukasiewicz.")
@@ -128,18 +132,19 @@ def parse_arguments():
 
     args = parser.parse_args()
 
-    # Set seed to a random value if not provided
+    # setting a random seed if not provided
     if args.seed is None:
         args.seed = random.randint(0, 1000000)
-    # Set the random seed for reproducibility
+    # setting a random seed for reproducibility
     random.seed(args.seed)
     np.random.seed(args.seed)
     
-    # Input files validation
+    # input files validation
     validate_file(args.annotation_file, expected_suffixes=[".gtf", ".gtf.gz"])
     validate_file(args.alignments_file, expected_suffixes=[".bam", ".sam", ".bam.gz"])
     
     if args.investigated_genes:
+        warnings.warn(f"Functionality not implemented yet.")
         validate_file(args.investigated_genes, expected_suffixes=[".txt", ".csv", ".tsv", ".txt.gz", ".csv.gz", ".tsv.gz"])
     
     return args
@@ -172,13 +177,13 @@ def process_annotation_file(config):
     if config.verbose:
         print(f'Processing annotation file {config.annotation_file} (feature: {config.feature}, grouping feature: {config.grouping_feature})')
 
-    chunks = []
+    chunks = [] # we don't need to load the whole GTF, when we don't need to save all the columns
     for i, chunk in enumerate(pd.read_csv(
         config.annotation_file, 
         sep='\t', 
         comment='#', 
         header=None,
-        usecols=[0, 2, 3, 4, 6, 8], 
+        usecols=[0, 2, 3, 4, 6, 8],
         dtype={0: str, 2: str, 3: int, 4: int, 6: str, 8: str},
         chunksize=config.chunk_size
     )):
@@ -199,7 +204,7 @@ def process_annotation_file(config):
 
         attr_dicts = filtered_chunk[8].apply(parse_attributes)
 
-        # Extract grouping_feature (e.g., gene_id) and feature_id (e.g., exon_id or transcript_id)
+        # extraction of grouping_feature and feature
         filtered_chunk['grouping_feature'] = attr_dicts.apply(lambda d: d.get(config.grouping_feature))
 
         def same_prefix(a, b):
@@ -212,10 +217,10 @@ def process_annotation_file(config):
                 lambda d: d.get(config.feature) if config.feature in d else f"{d.get(config.grouping_feature)}_{filtered_chunk.index}"
             )
 
-        # Drop rows missing grouping_feature (critical for grouping later)
+        # dropping rows with missing grouping_feature
         filtered_chunk = filtered_chunk.dropna(subset=['grouping_feature'])
 
-        # Keep only necessary columns
+        # filter only necessary columns
         filtered_chunk = filtered_chunk[[0, 3, 4, 6, 'feature', 'grouping_feature']]
         chunks.append(filtered_chunk)
 
@@ -253,7 +258,7 @@ def create_interval_trees(config, gtf_df):
     trees = {chromosome: IntervalTree() for chromosome in chromosomes}
     for _, row in gtf_df.iterrows():
         start = row['start'] - 1  # convertion to 0-based indexing, half-open
-        end = row['end']          # TODO: check if end should be inclusive
+        end = row['end']
         if start < end:
             trees[row['seqname']].add(Interval(start, end, (row['feature'], row['strand'])))
     return trees
@@ -299,12 +304,10 @@ def t_norm(config, value_1, value_2):
         if p is None:
             raise ValueError("Parameter 't_norm_param' must be specified for Schweizer–Sklar t-norm")
 
-        EPSILON = 1e-5
-
-        if abs(p) < EPSILON:
+        if abs(p) < EPSILON: # product
             return value_1 * value_2
         
-        elif np.isneginf(p):
+        elif np.isneginf(p): # min
             return min(value_1, value_2)
 
         elif p < 0:
@@ -313,7 +316,7 @@ def t_norm(config, value_1, value_2):
             val = value_1**p + value_2**p - 1
             return max(0.0, val)**(1 / p)
 
-        elif np.isposinf(p):
+        elif np.isposinf(p): # drastic
             if value_1 == 1:
                 return value_2
             if value_2 == 1:
@@ -332,8 +335,7 @@ def t_norm(config, value_1, value_2):
         if p is None:
             raise ValueError("Parameter 't_norm_param' must be specified for Hamacher t-norm")
 
-        if np.isposinf(p):
-            # Drastic t-norm
+        if np.isposinf(p): # drastic
             if value_1 == 1:
                 return value_2
             if value_2 == 1:
@@ -375,18 +377,33 @@ def t_conorm(config, value_1, value_2):
 
 
 def t_norm_batch(config, a, b):
+    """
+    Apply a t-norm operation to two same-size numpy arrays based on the configuration.
+
+    This function computes a t-norm (triangular norm) between two same-size numpy arryas, used
+    in fuzzy logic to model conjunction (logical AND).
+
+    The specific t-norm is defined by `config.t_norm`, an instance of the `TNorm` Enum class.
+    See the `TNorm` definition for the full list of supported operations.
+
+    Args:
+        config (Namespace): Configuration object containing a `t_norm` attribute of type `TNorm`.
+        value_1 (np.array): First numpy array in the t-norm operation. Expected elements to be in [0, 1].
+        value_2 (np.array): Second numpy array in the t-norm operation. Expected elements to be in [0, 1].
+
+    Returns:
+        np.array: Result of applying the selected t-norm element-wise to the input lists.
+
+    Raises:
+        ValueError: If the t-norm specified in `config.t_norm` is not recognized.
+    """
     if config.t_norm == TNorm.DRASTIC:
-        # Equivalent to:
-        # if a == 1 -> return b
-        # elif b == 1 -> return a
-        # else -> 0
         result = np.zeros_like(a)
         mask_a1 = (a == 1)
         mask_b1 = (b == 1)
 
         result[mask_a1] = b[mask_a1]
         result[mask_b1 & ~mask_a1] = a[mask_b1 & ~mask_a1]
-        # All other values remain 0
         return result
 
     elif config.t_norm == TNorm.PRODUCT:
@@ -400,16 +417,15 @@ def t_norm_batch(config, a, b):
     elif config.t_norm == TNorm.SCHWEIZER_SKLAR:
         p = config.t_norm_param
         if p is None:
-            raise ValueError("Parameter 't_norm_param' must be specified for Schweizer–Sklar t-norm")
-
-        EPSILON = 1e-5
+            raise ValueError("Parameter 't_norm_param' must be specified for Schweizer-Sklar t-norm")
+        
         a = np.clip(a, 0.0, 1.0)
         b = np.clip(b, 0.0, 1.0)
 
-        if abs(p) < EPSILON:
+        if abs(p) < EPSILON: # product
             return a * b
 
-        elif np.isneginf(p):
+        elif np.isneginf(p): # min
             return np.minimum(a, b)
 
         elif p < 0:
@@ -425,7 +441,7 @@ def t_norm_batch(config, a, b):
             val = a**p + b**p - 1
             return np.power(np.clip(val, 0, None), 1 / p)
 
-        elif np.isposinf(p):
+        elif np.isposinf(p): # drastic
             result = np.zeros_like(a)
             mask_a1 = (a == 1)
             mask_b1 = (b == 1)
@@ -440,8 +456,7 @@ def t_norm_batch(config, a, b):
         if p is None:
             raise ValueError("Parameter 't_norm_param' must be specified for Hamacher t-norm")
 
-        if np.isposinf(p):
-            # Drastic t-norm
+        if np.isposinf(p): # drastic
             result = np.zeros_like(a)
             mask_a1 = (a == 1)
             mask_b1 = (b == 1)
@@ -449,7 +464,6 @@ def t_norm_batch(config, a, b):
             result[mask_b1 & ~mask_a1] = a[mask_b1 & ~mask_a1]
             return result
 
-        # Avoid division by zero in corner case - also, if one of them is zero, the results is zero
         mask_zero = (a == 0) | (b == 0)
         numerator = a * b
         denominator = p + (1 - p) * (a + b - a * b)
@@ -461,60 +475,26 @@ def t_norm_batch(config, a, b):
     
 
 def t_conorm_batch(config, a, b):
+    """
+    Apply a t-conorm operation to two same-size numpy arrays based on the configuration.
+
+    This function computes a t-conorm (triangular conorm), used in fuzzy logic to model
+    disjunction (logical OR). It is derived from the selected t-norm
+    by the duality transformation:
+        S(a, b) = 1 - T(1 - a, 1 - b)
+
+    The specific t-norm is defined by `config.t_norm`, an instance of the `TNorm` Enum class.
+    See the `TNorm` definition for the full list of supported operations.
+
+    Args:
+        config (Namespace): Configuration object containing a `t_norm` attribute of type `TNorm`.
+        value_1 (np.array): First numpy array in the t-norm operation. Expected elements to be in [0, 1].
+        value_2 (np.array): Second numpy array in the t-norm operation. Expected elements to be in [0, 1].
+
+    Returns:
+         np.array: Result of applying the selected t-conorm element-wise to the input lists.
+    """
     return 1 - t_norm_batch(config, 1 - a, 1 - b)
-
-
-def truth_t_norm(config, left, right):
-    """
-    Apply t-norm to the 'for' values and t-conorm to the 'against' values in a bilattice.
-
-    Args:
-        config (Namespace): Configuration object containing a `t_norm` attribute (TNorm Enum).
-        left (tuple[float, float]): For value.
-        right (tuple[float, float]): Against value.
-
-    Returns:
-        tuple[float, float]: Element of bilattice after operation.
-    """
-    return t_norm(config, left[0], right[0]), t_conorm(config, left[1], right[1])
-
-
-def truth_t_conorm(config, left, right):
-    """
-    Apply t-conorm to the 'for' values and t-norm to the 'against' values in a bilattice.
-
-    Args:
-        config (Namespace): Configuration object containing a `t_norm` attribute (TNorm Enum).
-        left (tuple[float, float]): For value.
-        right (tuple[float, float]): Against value.
-
-    Returns:
-        tuple[float, float]: Element of bilattice after operation.
-    """
-    return t_conorm(config, left[0], right[0]), t_norm(config, left[1], right[1])
-
-
-def big_truth_conorm(config, values):
-    """
-    Apply chained truth t-conorm operations over a list of bilattice elements.
-
-    This function performs a reduction using `truth_t_conorm` on a list of billatice
-    values represented as (for, against) tuples.
-
-    Args:
-        config (Namespace): Configuration object containing a `t_norm` attribute (TNorm Enum).
-        values (list[tuple[float, float]]): List of bilattice elements as (for, against) tuples.
-
-    Returns:
-        tuple[float, float]: Final result after chaining `truth_t_conorm` over the list.
-                             Returns (0, 0) if the input list is empty.
-    """
-    if len(values) == 0:
-        return 0,0
-    result = values[0]
-    for value in values[1:]:
-        result = truth_t_conorm(config, result, value)
-    return result
 
 
 def scaling_factor_computation(config):
@@ -770,7 +750,7 @@ def process_alignment_file(config, annotations, trees, lowest_value, scaling_fac
         if config.verbose and i > 0:
             print(f'All {i} reads processed')
     
-    # Convert to numpy
+    # convertion to numpy
     for gene_id in gene_for_values:
         gene_for_values[gene_id] = np.array(gene_for_values[gene_id], dtype=np.float32)
         gene_against_values[gene_id] = np.array(gene_against_values[gene_id], dtype=np.float32)
@@ -806,14 +786,14 @@ def compute_results(config, annotations, gene_for_values, gene_against_values):
         
         n = len(for_values)
         
-        # Random permutations
+        # random permutations
         matrix = np.empty((config.subset_sample_size, 2, n), dtype=np.float32)
         for s in range(config.subset_sample_size):
             perm = np.random.permutation(n)
             matrix[s, 0, :] = for_values[perm]
             matrix[s, 1, :] = against_values[perm]
 
-        # Cumulative aggregation along each row
+        # cumulative aggregation along each row
         for i in range(1, n):
             matrix[:, 0, i] = t_norm_batch(config, matrix[:, 0, i - 1], matrix[:, 0, i])
             matrix[:, 1, i] = t_conorm_batch(config, matrix[:, 1, i - 1], matrix[:, 1, i])
@@ -824,28 +804,27 @@ def compute_results(config, annotations, gene_for_values, gene_against_values):
         if len(for_vals) == 0:
             return 0
         
-        # Generate all random permutations and cumulative row-wise t-norms
+        # generation of all random permutations and cumulative row-wise t-norms
         matrix = batch_necessity(for_vals, against_vals)
 
-        # Aggregate over columns (across samples) using dual logic
-        #        result: (2, N)
         for_agg = matrix[:, 0, :]  # shape: (samples, N)
         against_agg = matrix[:, 1, :]  # shape: (samples, N)
 
-        # Apply t_conorm across rows (i.e., over the samples axis)
+        # application of t-conorms accross rows
         agg_for = for_agg[0, :]
         agg_against = against_agg[0, :]
         for i in range(1, config.subset_sample_size):
             agg_for = t_conorm_batch(config, agg_for, for_agg[i, :])
             agg_against = t_norm_batch(config, agg_against, against_agg[i, :])
 
-        # Decision
+        # finding the cross point
         for i in range(len(agg_for)):
             if agg_for[i] < agg_against[i]:
                 return i
 
         return len(agg_for)
 
+    # TPM computation
     annotations['length_kb'] = (annotations['end'] - annotations['start']) / 1000.0
 
     counts = []
@@ -859,9 +838,6 @@ def compute_results(config, annotations, gene_for_values, gene_against_values):
         counts.append(count)
         if config.verbose and i % 5000 == 0 and i > 0:
             print(f'Processed {i} features')
-            current_time = time.time()
-            print(f'Time: {current_time - previous_time}')
-            previous_time = current_time
     if config.verbose:
         print(f'All {annotations.shape[0]} features processed')
 
@@ -881,6 +857,7 @@ def compute_results(config, annotations, gene_for_values, gene_against_values):
         'tpm': 'sum'
     }).reset_index()
 
+    # saving result
     with open(config.output_file, 'w') as file:
         file.write(f"{config.grouping_feature}\tCount\tTPM\n")
         for i, row in grouped_df.iterrows():

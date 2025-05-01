@@ -2,7 +2,7 @@ import pandas as pd
 
 all_gene_ids = set()
 
-# Get all gene IDs
+# load all genes
 for chunk in pd.read_csv(
         'genetic_data/annotations/gencode.v19.annotation.gtf', 
         sep='\t', 
@@ -21,10 +21,9 @@ for chunk in pd.read_csv(
                 all_gene_ids.add(gene_id)
                 break
 
-# Deterministically select the first 100 gene_ids (sorted alphabetically)
+# selection of first 100 genes
 selected_gene_ids = set(sorted(all_gene_ids)[:100])
 
-# Function to extract gene_id from attributes column
 def extract_gene_id(attr_string):
     for entry in attr_string.split(';'):
         entry = entry.strip()
@@ -32,7 +31,7 @@ def extract_gene_id(attr_string):
             return entry.split(' ')[1].replace('"', '')
     return None
 
-# Read full file with all columns and filter
+# second pass with filtering (to get all transcripts)
 filtered_rows = []
 
 for chunk in pd.read_csv(
@@ -47,7 +46,7 @@ for chunk in pd.read_csv(
     filtered_chunk = chunk[chunk['gene_id'].isin(selected_gene_ids)]
     filtered_rows.append(filtered_chunk.drop(columns='gene_id'))  # remove tmp column
 
-# Concatenate and save the filtered DataFrame
+# concatenation and saving
 result_df = pd.concat(filtered_rows, ignore_index=True)
 print(result_df.shape)
 result_df.to_csv('genetic_data/bilattice_count/test_samples/filtered_genes.gtf', sep='\t', header=False, index=False)
