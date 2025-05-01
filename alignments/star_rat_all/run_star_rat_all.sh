@@ -1,23 +1,23 @@
 #!/bin/bash
 
-# Activate conda environment
+# Conda enviroment activation
 source miniconda3/etc/profile.d/conda.sh
 conda activate star_env
 
-# Directories
+# File paths setting
 READS_DIR="genetic_data/reads/rat"
 OUTPUT_DIR="genetic_data/alignments/star_rat_all"
 INDEX="genetic_data/indexes/star_index_rattus_norvegicus"
 
-# Create output directory if it doesn't exist
+# Output directory creation if nonexistence
 mkdir -p "$OUTPUT_DIR"
 
-# Loop through each FASTQ file
+# Loop through each sample
 for fastq_file in "$READS_DIR"/*.fastq.gz; do
+    # Sample name extraction
     sample_name=$(basename "$fastq_file" .fastq.gz)
-    echo "Processing $sample_name..."
 
-    # Run STAR alignment for single-end reads
+    # STAR alignment run
     STAR --runThreadN 8 \
          --genomeDir "$INDEX" \
          --readFilesIn "$fastq_file" \
@@ -29,22 +29,21 @@ for fastq_file in "$READS_DIR"/*.fastq.gz; do
          --alignIntronMax 1000000 \
          --alignMatesGapMax 1000000
 
-    # Rename the BAM file
+    # Renaming to fit convention
     mv "${OUTPUT_DIR}/${sample_name}_Aligned.out.bam" "${OUTPUT_DIR}/${sample_name}.bam"
 
-    # Sort BAM by name
+    # BAM by name sorting
     samtools sort -n "${OUTPUT_DIR}/${sample_name}.bam" -o "${OUTPUT_DIR}/${sample_name}_sorted_by_name.bam"
 
-    # Sort BAM by position
+    # BAM by coordinates sorting
     samtools sort "${OUTPUT_DIR}/${sample_name}.bam" -o "${OUTPUT_DIR}/${sample_name}_sorted.bam"
 
-    # Index the sorted BAM file
+     # BAM file indexation
     samtools index "${OUTPUT_DIR}/${sample_name}_sorted.bam"
 
-    # Remove the original unsorted BAM
+    # Unsorted BAM file removal
     rm "${OUTPUT_DIR}/${sample_name}.bam"
 
-    echo "Finished $sample_name. Results saved in $OUTPUT_DIR"
 done
 
-echo "All STAR alignments finished."
+echo "OK, all samples processed."

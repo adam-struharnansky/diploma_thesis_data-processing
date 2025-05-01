@@ -1,32 +1,31 @@
 #!/bin/bash
 
-# Activate conda enviroment
+# Conda enviroment activation
 source miniconda3/etc/profile.d/conda.sh
 conda activate star_env
 
-
-# Directories
+# File paths setting
 INDEX="genetic_data/indexes/star_index_homo_sapiens"
 READS="genetic_data/reads/seqcB"
 OUTPUT="genetic_data/alignments/star_seqcB_all"
 
-# Create output directory if it doesn't exist
+# Output directory creation if nonexistence
 mkdir -p "$OUTPUT"
 
-# Loop through each subdirectory
+# Loop through each sample
 for sample_dir in "$READS"/*/; do
-    # Extract sample name
+    # Sample name extraction
     sample_name=$(basename "$sample_dir")
 
-    # Define paired-end FASTQ files
+    # FASTQ files definitions
     r1="${sample_dir}/${sample_name}_1.fastq.gz"
     r2="${sample_dir}/${sample_name}_2.fastq.gz"
 
     echo "$sample_name"
 
-    # Check if both R1 and R2 exist before running STAR
+    # Both files must exist
     if [[ -f "$r1" && -f "$r2" ]]; then
-        # Run STAR alignment
+        # STAR alignment run
         STAR --runThreadN 8 \
              --genomeDir "$INDEX" \
              --readFilesIn "$r1" "$r2" \
@@ -38,25 +37,24 @@ for sample_dir in "$READS"/*/; do
              --alignIntronMax 1000000 \
              --alignMatesGapMax 1000000
 
-        # Rename to fit convention
+        # Renaming to fit convention
         mv "${OUTPUT}/${sample_name}_Aligned.out.bam" "${OUTPUT}/${sample_name}.bam"
 
-        # Sort BAM by name
+        # BAM by name sorting
         samtools sort -n "${OUTPUT}/${sample_name}.bam" -o "${OUTPUT}/${sample_name}_sorted_by_name.bam"
 
-        # Sort BAM by position
+        # BAM by coordinates sorting
         samtools sort "${OUTPUT}/${sample_name}.bam" -o "${OUTPUT}/${sample_name}_sorted.bam"
 
-        # Index the sorted BAM file
+         # BAM file indexation
         samtools index "${OUTPUT}/${sample_name}_sorted.bam"
 
-        # Remove the original unsorted BAM file
+        # Unsorted BAM file removal
         rm "${OUTPUT}/${sample_name}.bam"
 
-        echo "Finished $sample_name. Results stored in $OUTPUT"
     else
-        echo "Skipping $sample_name: Missing R1 or R2 file."
+        echo "Error, skipping $sample_name: Missing R1 or R2 file."
     fi
 done
 
-echo "All samples processed."
+echo "OK, all samples processed."

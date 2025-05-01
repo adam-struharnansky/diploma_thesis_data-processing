@@ -1,49 +1,49 @@
 #!/bin/bash
 
-# Activate conda enviroment
+# Conda enviroment activation
 source miniconda3/etc/profile.d/conda.sh
 conda activate bowtie2_env
 
-# Directories
+# File paths setting
 INDEX="genetic_data/indexes/bowtie2_index_mus_musculus/bowtie2_mus_musculus_index"
 READS="genetic_data/reads/beers_all_bias"
 OUTPUT="genetic_data/alignments/bowtie2_beers_all_bias_all"
 
-# Loop through each subdirectory
+# Output directory creation if nonexistence
+mkdir -p "$OUTPUT"
+
+# Loop through each sample
 for sample_dir in "$READS"/*/; do
-    # Extract sample name
+    # Sample name extraction
     sample_name=$(basename "$sample_dir")
 
-    # Define paired-end FASTQ files
+    # FASTQ files definitions
     r1="${sample_dir}/${sample_name}_1.fastq.gz"
     r2="${sample_dir}/${sample_name}_2.fastq.gz"
 
-    echo "$sample_name"
-
-    # Check if both R1 and R2 exist before running bowtie
+    # Both files must exist
     if [[ -f "$r1" && -f "$r2" ]]; then
-        # Run Bowtie2 alignment
+        # Bowtie2 alignment run
         bowtie2 -x "$INDEX" -1 "$r1" -2 "$r2" --very-sensitive -k 10 -S "${OUTPUT}/${sample_name}.sam"
 
-        # Convert SAM to BAM
+        # SAM to BAM conversion
         samtools view -Sb "${OUTPUT}/${sample_name}.sam" > "${OUTPUT}/${sample_name}.bam"
 
-        # Sort BAM by name
+        # BAM by name sorting
         samtools sort -n "${OUTPUT}/${sample_name}.bam" -o "${OUTPUT}/${sample_name}_sorted_by_name.bam"
 
-        # Sort the BAM file
+        # BAM by coordinates sorting
         samtools sort "${OUTPUT}/${sample_name}.bam" -o "${OUTPUT}/${sample_name}_sorted.bam"
 
-        # Index the sorted BAM file
+        # BAM file indexation
         samtools index "${OUTPUT}/${sample_name}_sorted.bam"
 
-        # Remove the unsorted BAM and SAM files
+        # Unsorted BAM and SAM files removal
         rm "${OUTPUT}/${sample_name}.sam" "${OUTPUT}/${sample_name}.bam"
 
-        echo "Finished $sample_name. Results stored in $OUTPUT"
     else
-        echo "Skipping $sample_name: Missing R1 or R2 file."
+        echo "Error, skipping $sample_name: Missing R1 or R2 file."
     fi
 done
 
-echo "All samples processed."
+echo "OK, all samples processed."
