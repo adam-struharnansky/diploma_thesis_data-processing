@@ -3,43 +3,41 @@
 # Exit immediately if any command fails
 set -e
 
-# Define Miniconda installation path
+# Miniconda installation path definition
 MINICONDA_DIR="$HOME/miniconda3"
 
-# Remove existing Miniconda installation if present
+# Existing Miniconda installation removal if present
 if [ -d "$MINICONDA_DIR" ]; then
-    echo "Removing existing Miniconda installation..."
     rm -rf "$MINICONDA_DIR"
 fi
 
-# Download the latest Miniconda installer
+# Miniconda installer download
 echo "Downloading Miniconda..."
 wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O Miniconda3.sh
 
-# Run the installer
+# Installer run
 echo "Installing Miniconda..."
 bash Miniconda3.sh -b -p "$MINICONDA_DIR"
 
-# Initialize Conda
+# Conda initialization
 echo "Initializing Conda..."
 $MINICONDA_DIR/bin/conda init bash
 
-# Activate changes
-echo "Activating Conda..."
+# Changes activation
 source ~/.bashrc
 
-# Add Bioconda channels
+# Bioconda channels addition
 echo "Adding Bioconda channels..."
 conda config --add channels defaults
 conda config --add channels bioconda
 conda config --add channels conda-forge
 conda config --set channel_priority strict
 
-# Verify installation
-echo "Conda installation complete. Checking version..."
+# Installation verification
+echo "Conda version:"
 conda --version
 
-# Cleanup installer
+# Installer cleanup
 rm -f Miniconda3.sh
 
 echo "Setup complete!"

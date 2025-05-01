@@ -3,10 +3,10 @@
 # Create a new conda environment with Python 3.10
 conda create -n bilattice_env python=3.10 -y
 
-# Activate the new environment
+# Conda enviroment activation
 source activate bilattice_env
 
-# Install dependencies with specific versions
+# Dependencies installation
 conda install -c conda-forge -c bioconda \
     bottleneck=1.4.2 \
     intervaltree=3.1.0 \
@@ -21,6 +21,6 @@ conda install -c conda-forge -c bioconda \
     pysam=0.23.0 \
     -y
 
-# Confirm installation
+# Installation confirmation
 echo "Installed packages in bilattice_env:"
 conda list -n bilattice_env

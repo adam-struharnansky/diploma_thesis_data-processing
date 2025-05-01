@@ -1,14 +1,16 @@
 #!/bin/bash
 
-# Activate conda environment with SRA tools
+# Conda enviroment activation
 source miniconda3/etc/profile.d/conda.sh
 conda activate sra_tools_env
 
-# Define output directory
+# File paths setting
 BASE_DIR=genetic_data/reads/rat
+
+# Output directory creation if nonexistence
 mkdir -p "$BASE_DIR"
 
-# Define sample info: format => RNATYPE|SRR1[,SRR2]|ORGAN|SEX|AGE
+# Parameter setting: format => RNATYPE|SRR1[,SRR2]|ORGAN|SEX|AGE
 samples=(
   "mirna|SRR14265300|brain|female|006"
   "rna|SRR1169967,SRR1169968|brain|female|006"
@@ -18,22 +20,20 @@ samples=(
   "rna|SRR1170371,SRR1170372|spleen|female|021"
 )
 
-# Step through each sample
+# Loop through each sample
 for sample in "${samples[@]}"; do
   IFS="|" read -r TYPE SRRS ORGAN SEX AGE <<< "$sample"
   OUTPUT_NAME="rn_${ORGAN}_${TYPE}_${SEX}_${AGE}"
   OUTPUT_PATH="${BASE_DIR}/${OUTPUT_NAME}.fastq.gz"
 
-  echo "Processing ${OUTPUT_NAME}..."
-
-  # If it's a single SRR (miRNA), just dump it
+  # Simple miRNAs saving
   if [[ "$SRRS" != *","* ]]; then
     SRR=$SRRS
     fasterq-dump "$SRR" -e 4 -O "$BASE_DIR"
     gzip "${BASE_DIR}/${SRR}.fastq"
     mv "${BASE_DIR}/${SRR}.fastq.gz" "$OUTPUT_PATH"
 
-  # If it's two SRRs (RNA), concatenate them
+  # RNA concatenation and saving
   else
     IFS="," read -r SRR1 SRR2 <<< "$SRRS"
     fasterq-dump "$SRR1" -e 4 -O "$BASE_DIR"
@@ -45,4 +45,4 @@ for sample in "${samples[@]}"; do
   fi
 done
 
-echo "All downloads and processing complete."
+echo "OK, all files downaloaded!"

@@ -3,8 +3,8 @@
 # Create a new conda environment
 conda create -n feature_counts_env -y
 
-# Activate the new environment
+# Conda enviroment activation
 source activate feature_counts_env
 
-# Install featureCounts using the bioconda channel (it is part of Subread package)
+# featureCounts instalation using the bioconda channel)
 conda install -c bioconda subread -y
