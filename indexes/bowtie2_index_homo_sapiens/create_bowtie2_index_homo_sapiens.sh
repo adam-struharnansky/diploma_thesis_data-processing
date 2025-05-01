@@ -1,13 +1,18 @@
 #!/bin/bash
 
-# Activate conda environment
+# Conda enviroment activation
 source miniconda3/etc/profile.d/conda.sh
 conda activate bowtie2_env
 
-# Define variables
-THREADS=4
+# File paths setting
 GENOME_DIR=genetic_data/indexes/bowtie2_index_homo_sapiens
 GENOME_FASTA=genetic_data/genomes/GRCh37.p13.genome.fa.gz
+
+# Output directory creation if nonexistence
+mkdir -p "$GENOME_DIR"
+
+# Parameter setting
+THREADS=4
 
 # Function to unzip files if they are compressed
 unzip_if_needed() {
@@ -30,14 +35,16 @@ rezip_if_needed() {
     fi
 }
 
-# Unzip files if needed
+# Files unzip
 GENOME_FASTA_UNZIPPED=$(unzip_if_needed $GENOME_FASTA)
 
-# Create output directory if not exists
+# Output directory creation if nonexistence
 mkdir -p $GENOME_DIR
 
-# Run Bowtie2 indexing
+# Bowtie2 indexing run
 bowtie2-build --threads $THREADS $GENOME_FASTA_UNZIPPED $GENOME_DIR/bowtie2_homo_sapiens_index
 
-# Re-zip files if needed
+# Files zip
 rezip_if_needed $GENOME_FASTA
+
+echo "OK, index created!"

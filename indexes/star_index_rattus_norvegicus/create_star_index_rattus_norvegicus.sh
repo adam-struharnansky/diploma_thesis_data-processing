@@ -1,15 +1,20 @@
 #!/bin/bash
 
-# Activate conda environment
+# Conda enviroment activation
 source miniconda3/etc/profile.d/conda.sh
 conda activate star_env
 
-# Define variables
-THREADS=4
-MAX_RAM=51539607552  # 48GB in bytes
+# File paths setting
 GENOME_DIR=genetic_data/indexes/star_index_rattus_norvegicus
 GENOME_FASTA=genetic_data/genomes/Rattus_norvegicus.Rnor_5.0.dna.toplevel.fa.gz
 ANNOTATION_GTF=genetic_data/annotations/Rattus_norvegicus.Rnor_5.0.77.gtf.gz
+
+# Output directory creation if nonexistence
+mkdir -p "$GENOME_DIR"
+
+# Parameter setting
+THREADS=4
+MAX_RAM=51539607552  # 48GB in bytes
 
 # Function to unzip files if they are compressed
 unzip_if_needed() {
@@ -32,14 +37,14 @@ rezip_if_needed() {
     fi
 }
 
-# Unzip files if needed
+# Files unzip
 GENOME_FASTA_UNZIPPED=$(unzip_if_needed $GENOME_FASTA)
 ANNOTATION_GTF_UNZIPPED=$(unzip_if_needed $ANNOTATION_GTF)
 
 # Create genome index directory if it doesn't exist
 mkdir -p $GENOME_DIR
 
-# Run STAR command
+# STAR indexing run
 STAR --runThreadN $THREADS \
      --runMode genomeGenerate \
      --genomeDir $GENOME_DIR \
@@ -47,6 +52,8 @@ STAR --runThreadN $THREADS \
      --sjdbGTFfile $ANNOTATION_GTF_UNZIPPED \
      --limitGenomeGenerateRAM $MAX_RAM
 
-# Re-zip files if needed
+# Files zip
 rezip_if_needed $GENOME_FASTA
 rezip_if_needed $ANNOTATION_GTF
+
+echo "OK, index created!"
