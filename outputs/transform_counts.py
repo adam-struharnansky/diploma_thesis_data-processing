@@ -534,7 +534,7 @@ def process_rat_directory(directory_path, tool_type, gene_lengths_df=None, main_
                 df = pd.merge(main_table, df, left_on='mirna_ensamble_id', right_on='gene_id', how='left')
                 all_mirna_dataframes.append(df)
             else:
-                df = pd.merge(main_table, df, left_on='gene_ensamble_id', right_on='gene_id', how='left')
+                df = pd.merge(main_table, df, left_on='target_ensemble_id', right_on='gene_id', how='left')
                 all_dataframes.append(df)
     if all_dataframes:
         result_df = all_dataframes[0]
