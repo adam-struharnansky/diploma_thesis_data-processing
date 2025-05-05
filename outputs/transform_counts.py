@@ -511,6 +511,8 @@ def process_rat_directory(directory_path, tool_type, gene_lengths_df=None, main_
     """
     all_dataframes = []
     all_mirna_dataframes = []
+    mirna_ids = set(main_table['mirna_ensamble_id'].dropna())
+    target_ids = set(main_table['target_ensemble_id'].dropna())
     
     for filename in os.listdir(directory_path):
         if filename.endswith(".txt"):
@@ -531,12 +533,13 @@ def process_rat_directory(directory_path, tool_type, gene_lengths_df=None, main_
                 df = df.rename(columns={"TPM": f'star_{tool_type}_{filename[:-4]}'})
 
             if 'mirna' in filename:
-                df = pd.merge(main_table, df, left_on='mirna_ensamble_id', right_on='gene_id', how='left')
-                all_mirna_dataframes.append(df)
+                filtered_df = df[df['gene_id'].isin(mirna_ids)]
+                all_mirna_dataframes.append(filtered_df)
             else:
-                df = pd.merge(main_table, df, left_on='target_ensemble_id', right_on='gene_id', how='left')
-                all_dataframes.append(df)
+                filtered_df = df[df['gene_id'].isin(target_ids)]
+                all_dataframes.append(filtered_df)
     if all_dataframes and all_mirna_dataframes:
+        '''
         print('all')
         for tmp in all_dataframes:
             print(tmp.columns)
@@ -544,6 +547,7 @@ def process_rat_directory(directory_path, tool_type, gene_lengths_df=None, main_
         for tmp in all_mirna_dataframes:
             print(tmp.columns)
         print('-------------------------')
+        '''
         result_df = all_dataframes[0]
         result_mirna_df = all_mirna_dataframes[0]
         for df in all_dataframes[1:]:
