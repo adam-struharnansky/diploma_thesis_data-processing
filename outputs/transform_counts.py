@@ -573,8 +573,7 @@ def process_rat(counts_path, outputs_path, gene_lengths_df=None):
                 df_rna, df_mirna = process_rat_directory(dir_path, 'bilatticeCount', main_table=main_table)
             else:
                 continue
-            print(df_mirna.columns)
-            print(df_rna.columns)
+            
             mirna_output_table = pd.merge(mirna_output_table, df_mirna, left_on='mirna_ensamble_id', right_on='gene_id', how='left')
             rna_output_table = pd.merge(rna_output_table, df_rna, left_on='target_ensemble_id', right_on='gene_id', how='left')
             
