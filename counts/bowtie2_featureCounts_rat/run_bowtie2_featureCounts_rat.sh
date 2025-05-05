@@ -7,7 +7,7 @@ conda activate feature_counts_env
 # File paths setting
 INPUT_DIR="genetic_data/alignments/bowtie2_rat_all"
 GTF_GENE="genetic_data/annotations/Rattus_norvegicus.Rnor_5.0.77.gtf.gz"
-GTF_MIRNA="genetic_data/annotations/miRNA_Rattus_norvegicus.Rnor_5.0.77.all.gtf.gz"
+GTF_MIRNA="genetic_data/annotations/miRNA_Rattus_norvegicus.Rnor_5.0.77.all.gtf"
 OUTPUT_DIR="genetic_data/counts/bowtie2_featureCounts_rat"
 
 # Output directory creation if nonexistence
