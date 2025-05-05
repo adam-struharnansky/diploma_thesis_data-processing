@@ -584,7 +584,7 @@ if __name__ == "__main__":
     #mus_musculus_mappings = get_transcript_gene_mapping('genetic_data/annotations/Mus_musculus.GRCm38.102.gtf')
     #homo_sapiens_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/gencode.v19.annotation.gtf')
     #homo_sapines_mappings = get_transcript_gene_mapping('genetic_data/annotations/gencode.v19.annotation.gtf')
-    rattus_norvegicus_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/Rattus_norvegicus.Rnor_6.0.102.gtf')
+    rattus_norvegicus_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/Rattus_norvegicus.Rnor_5.0.77.gtf')
     #process_seqcA(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts, transcript_gene_mappings=homo_sapines_mappings)
     #process_seqcB(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts, transcript_gene_mappings=homo_sapines_mappings)
     #process_beers(counts_path, outputs_path, gene_lengths_df=mus_musculus_gene_lenghts, transcript_gene_mappings=mus_musculus_mappings)
