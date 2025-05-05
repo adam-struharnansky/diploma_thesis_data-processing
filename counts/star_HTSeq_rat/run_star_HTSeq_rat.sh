@@ -7,7 +7,7 @@ conda activate htseq_env
 # File paths setting
 INPUT_DIR="genetic_data/alignments/star_rat_all"
 GTF_GENE="genetic_data/annotations/Rattus_norvegicus.Rnor_5.0.77.gtf.gz"
-GTF_MIRNA="genetic_data/annotations/miRNA_Rattus_norvegicus.Rnor_5.0.77.gtf.all.gz"
+GTF_MIRNA="genetic_data/annotations/miRNA_Rattus_norvegicus.Rnor_5.0.77.all.gtf.gz"
 OUTPUT_DIR="genetic_data/counts/star_HTSeq_rat"
 
 # Output directory creation if nonexistence
