@@ -539,13 +539,6 @@ def process_rat_directory(directory_path, tool_type, gene_lengths_df=None, main_
                 filtered_df = df[df['gene_id'].isin(target_ids)]
                 all_dataframes.append(filtered_df)
     if all_dataframes and all_mirna_dataframes:
-        print('all')
-        for tmp in all_dataframes:
-            print(tmp.columns)
-        print('mirna')
-        for tmp in all_mirna_dataframes:
-            print(tmp.columns)
-        print('-------------------------')
         result_df = all_dataframes[0]
         result_mirna_df = all_mirna_dataframes[0]
         for df in all_dataframes[1:]:
@@ -571,14 +564,17 @@ def process_rat(counts_path, outputs_path, gene_lengths_df=None):
             df_rna = pd.DataFrame()
 
             if 'featureCounts' in dir_name:
+                continue
                 df_rna, df_mirna = process_rat_directory(dir_path, 'featureCounts', main_table=main_table)
             elif 'HTSeq' in dir_name:
+                continue
                 df_rna, df_mirna = process_rat_directory(dir_path, 'HTSeq', gene_lengths_df=gene_lengths_df, main_table=main_table)
             elif 'bilatticeCount' in dir_name:
                 df_rna, df_mirna = process_rat_directory(dir_path, 'bilatticeCount', main_table=main_table)
             else:
                 continue
-
+            print(df_mirna.columns)
+            print(df_rna.columns)
             mirna_output_table = pd.merge(mirna_output_table, df_mirna, left_on='mirna_ensamble_id', right_on='gene_id', how='left')
             rna_output_table = pd.merge(rna_output_table, df_rna, left_on='target_ensemble_id', right_on='gene_id', how='left')
             
