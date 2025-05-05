@@ -539,7 +539,6 @@ def process_rat_directory(directory_path, tool_type, gene_lengths_df=None, main_
                 filtered_df = df[df['gene_id'].isin(target_ids)]
                 all_dataframes.append(filtered_df)
     if all_dataframes and all_mirna_dataframes:
-        '''
         print('all')
         for tmp in all_dataframes:
             print(tmp.columns)
@@ -547,7 +546,6 @@ def process_rat_directory(directory_path, tool_type, gene_lengths_df=None, main_
         for tmp in all_mirna_dataframes:
             print(tmp.columns)
         print('-------------------------')
-        '''
         result_df = all_dataframes[0]
         result_mirna_df = all_mirna_dataframes[0]
         for df in all_dataframes[1:]:
