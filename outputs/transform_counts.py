@@ -564,31 +564,30 @@ def process_rat(counts_path, outputs_path, gene_lengths_df=None):
             if 'featureCounts' in dir_name:
                 df_rna, df_mirna = process_rat_directory(dir_path, 'featureCounts', main_table=main_table)
             elif 'HTSeq' in dir_name:
-                df_rna, df_mirna = process_rat_directory(dir_path, 'HTSeq', gene_lenghts_df=gene_lenghts_df, main_table=main_table)
+                df_rna, df_mirna = process_rat_directory(dir_path, 'HTSeq', gene_lengths_df=gene_lengths_df, main_table=main_table)
             elif 'bilatticeCount' in dir_name:
                 df_rna, df_mirna = process_rat_directory(dir_path, 'bilatticeCount', main_table=main_table)
             else:
                 continue
 
             mirna_output_table = pd.merge(mirna_output_table, df_mirna, left_on='mirna_ensamble_id', right_on='gene_id', how='left')
-            rna_output_table = pd.merge(rna_output_table, df_rna, left_on='target_ensemble_id', right_on'gene_id', how='left')
+            rna_output_table = pd.merge(rna_output_table, df_rna, left_on='target_ensemble_id', right_on='gene_id', how='left')
             
-            # tu mame tri vzorky, ktore su ine
-            # ale asi to staci hodit do dvoch, a potom si to budem filtrovat u seba lepsie
-
-    # Save each sample-wide DataFrame
-    for i, df in enumerate(all_samples):
-        output_path = os.path.join(outputs_path, f"rat{i + 1}.csv")
-        df.to_csv(output_path, sep="\t", index=False)
-
+    mirna_output_table.to_csv(os.path.join(outputs_path, 'mirna_rat.csv'), sep='\t', index=False)
+    rna_output_table.to_csv(os.path.join(outputs_path, 'rna_rat.csv'), sep='\t', index=False)
+    
 
 if __name__ == "__main__":
     counts_path = 'genetic_data/counts'
     outputs_path = 'genetic_data/outputs'
-    mus_musculus_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/Mus_musculus.GRCm38.102.gtf')
-    mus_musculus_mappings = get_transcript_gene_mapping('genetic_data/annotations/Mus_musculus.GRCm38.102.gtf')
-    homo_sapiens_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/gencode.v19.annotation.gtf')
-    homo_sapines_mappings = get_transcript_gene_mapping('genetic_data/annotations/gencode.v19.annotation.gtf')
-    process_seqcA(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts, transcript_gene_mappings=homo_sapines_mappings)
-    process_seqcB(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts, transcript_gene_mappings=homo_sapines_mappings)
-    process_beers(counts_path, outputs_path, gene_lengths_df=mus_musculus_gene_lenghts, transcript_gene_mappings=mus_musculus_mappings)
+    #mus_musculus_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/Mus_musculus.GRCm38.102.gtf')
+    #mus_musculus_mappings = get_transcript_gene_mapping('genetic_data/annotations/Mus_musculus.GRCm38.102.gtf')
+    #homo_sapiens_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/gencode.v19.annotation.gtf')
+    #homo_sapines_mappings = get_transcript_gene_mapping('genetic_data/annotations/gencode.v19.annotation.gtf')
+    rattus_norvegicus_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/Rattus_norvegicus.Rnor_6.0.102.gtf')
+    #process_seqcA(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts, transcript_gene_mappings=homo_sapines_mappings)
+    #process_seqcB(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts, transcript_gene_mappings=homo_sapines_mappings)
+    #process_beers(counts_path, outputs_path, gene_lengths_df=mus_musculus_gene_lenghts, transcript_gene_mappings=mus_musculus_mappings)
+    process_rat(counts_path, outputs_path, rattus_norvegicus_gene_lenghts)
+
+
