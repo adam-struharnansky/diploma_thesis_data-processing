@@ -549,7 +549,7 @@ def process_rat_directory(directory_path, tool_type, gene_lengths_df=None, main_
     
 
 def process_rat(counts_path, outputs_path, gene_lengths_df=None):
-    main_table = pd.read_csv(os.path.join(outputs_path, 'mirna_rna_pairs.csv'), sep="\t")
+    main_table = pd.read_csv(os.path.join(outputs_path, 'mirna_rna_pairs.csv'))
     mirna_output_table = main_table[['mirna_key','mirna_ensamble_id']].copy()
     rna_output_table = main_table[['target_gene','target_ensemble_id']].copy()
 
