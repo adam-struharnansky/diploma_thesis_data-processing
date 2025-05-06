@@ -552,8 +552,8 @@ def process_rat_directory(directory_path, tool_type, gene_lengths_df=None, main_
 
 def process_rat(counts_path, outputs_path, gene_lengths_df=None):
     main_table = pd.read_csv(os.path.join(outputs_path, 'mirna_rna_pairs.csv'))
-    mirna_output_table = main_table[['mirna_key','mirna_ensamble_id']].copy()
-    rna_output_table = main_table[['target_gene','target_ensemble_id']].copy()
+    mirna_output_table = main_table[['mirna_key','mirna_ensamble_id']].copy().drop_duplicates().dropna()
+    rna_output_table = main_table[['target_gene','target_ensemble_id']].copy().drop_duplicates().dropna()
 
     for root, dirs, _ in os.walk(counts_path):
         for dir_name in dirs:
@@ -573,7 +573,7 @@ def process_rat(counts_path, outputs_path, gene_lengths_df=None):
                 df_rna, df_mirna = process_rat_directory(dir_path, 'bilatticeCount', main_table=main_table)
             else:
                 continue
-            
+
             mirna_output_table = pd.merge(mirna_output_table, df_mirna, left_on='mirna_ensamble_id', right_on='gene_id', how='left')
             rna_output_table = pd.merge(rna_output_table, df_rna, left_on='target_ensemble_id', right_on='gene_id', how='left')
             
