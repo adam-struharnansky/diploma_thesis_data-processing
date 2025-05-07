@@ -579,6 +579,7 @@ def process_rat(counts_path, outputs_path, gene_lengths_df=None, gene_mapings=No
                     print(f"Skipping merge: 'gene_id' not found in df_rna_kallisto from {dir_path}")
                     continue
                 print(df_rna_kallisto.head())
+                print(rna_kallisto.head())
                 rna_kallisto = pd.merge(rna_kallisto, df_rna_kallisto, left_on='target_ensemble_id', right_on='gene_id', how='left')
             else:
                 continue
