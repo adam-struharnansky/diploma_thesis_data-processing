@@ -551,10 +551,11 @@ def process_rat_directory(directory_path, tool_type, gene_lengths_df=None, main_
         return pd.DataFrame(columns=['gene_id']), pd.DataFrame(columns=['gene_id'])
     
 
-def process_rat(counts_path, outputs_path, gene_lengths_df=None):
+def process_rat(counts_path, outputs_path, gene_lengths_df=None, gene_mapings=None):
     main_table = pd.read_csv(os.path.join(outputs_path, 'mirna_rna_pairs.csv'))
     mirna_output_table = main_table[['mirna_key','mirna_ensamble_id']].copy().drop_duplicates().dropna()
     rna_output_table = main_table[['target_gene','target_ensemble_id']].copy().drop_duplicates().dropna()
+    rna_kallisto = main_table[['target_gene','target_ensemble_id']].copy().drop_duplicates().dropna()
 
     for root, dirs, _ in os.walk(counts_path):
         for dir_name in dirs:
@@ -572,6 +573,9 @@ def process_rat(counts_path, outputs_path, gene_lengths_df=None):
                 df_rna, df_mirna = process_rat_directory(dir_path, 'HTSeq', gene_lengths_df=gene_lengths_df, main_table=main_table)
             elif 'bilatticeCount' in dir_name:
                 df_rna, df_mirna = process_rat_directory(dir_path, 'bilatticeCount', main_table=main_table)
+            elif 'kallisto' in dir_name:
+                df_rna_kallisto = process_complex_directory(dir_path, 'kallisto', transcript_gene_mappings=gene_mapings)
+                rna_kallisto = pd.merge(rna_kallisto, df_rna_kallisto, left_on='target_ensemble_id', right_on='gene_id', how='left')
             else:
                 continue
 
@@ -580,6 +584,7 @@ def process_rat(counts_path, outputs_path, gene_lengths_df=None):
             
     mirna_output_table.to_csv(os.path.join(outputs_path, 'mirna_rat.csv'), sep='\t', index=False)
     rna_output_table.to_csv(os.path.join(outputs_path, 'rna_rat.csv'), sep='\t', index=False)
+    rna_kallisto.to_csv(os.path.join(outputs_path, 'rna_kallisto_rat.csv'), sep='\t', index=False)
     
 
 if __name__ == "__main__":
@@ -590,9 +595,8 @@ if __name__ == "__main__":
     #homo_sapiens_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/gencode.v19.annotation.gtf')
     #homo_sapines_mappings = get_transcript_gene_mapping('genetic_data/annotations/gencode.v19.annotation.gtf')
     rattus_norvegicus_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/Rattus_norvegicus.Rnor_5.0.77.gtf')
+    rattus_norvegicus_mappings = get_transcript_gene_mapping('genetic_data/annotations/Rattus_norvegicus.Rnor_5.0.77.gtf')
     #process_seqcA(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts, transcript_gene_mappings=homo_sapines_mappings)
     #process_seqcB(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts, transcript_gene_mappings=homo_sapines_mappings)
     #process_beers(counts_path, outputs_path, gene_lengths_df=mus_musculus_gene_lenghts, transcript_gene_mappings=mus_musculus_mappings)
-    process_rat(counts_path, outputs_path, rattus_norvegicus_gene_lenghts)
-
-
+    process_rat(counts_path, outputs_path, rattus_norvegicus_gene_lenghts, rattus_norvegicus_mappings)
