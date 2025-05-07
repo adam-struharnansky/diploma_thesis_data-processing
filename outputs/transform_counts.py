@@ -575,6 +575,9 @@ def process_rat(counts_path, outputs_path, gene_lengths_df=None, gene_mapings=No
                 df_rna, df_mirna = process_rat_directory(dir_path, 'bilatticeCount', main_table=main_table)
             elif 'kallisto' in dir_name:
                 df_rna_kallisto = process_complex_directory(dir_path, 'kallisto', transcript_gene_mappings=gene_mapings)
+                if 'gene_id' not in df_rna_kallisto.columns:
+                    print(f"Skipping merge: 'gene_id' not found in df_rna_kallisto from {dir_path}")
+                    continue
                 print(df_rna_kallisto.head())
                 rna_kallisto = pd.merge(rna_kallisto, df_rna_kallisto, left_on='target_ensemble_id', right_on='gene_id', how='left')
             else:
