@@ -509,6 +509,7 @@ def process_rat_directory(directory_path, tool_type, gene_lengths_df=None, main_
     Returns:
     None
     """
+    print(f'Processing {directory_path} directory')
     all_dataframes = []
     all_mirna_dataframes = []
     mirna_ids = set(main_table['mirna_ensamble_id'].dropna())
