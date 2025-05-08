@@ -566,10 +566,8 @@ def process_rat(counts_path, outputs_path, gene_lengths_df=None, gene_mapings=No
             df_rna = pd.DataFrame()
 
             if 'featureCounts' in dir_name:
-                continue
                 df_rna, df_mirna = process_rat_directory(dir_path, 'featureCounts', main_table=main_table)
             elif 'HTSeq' in dir_name:
-                continue
                 df_rna, df_mirna = process_rat_directory(dir_path, 'HTSeq', gene_lengths_df=gene_lengths_df, main_table=main_table)
             elif 'bilatticeCount' in dir_name:
                 df_rna, df_mirna = process_rat_directory(dir_path, 'bilatticeCount', main_table=main_table)
