@@ -579,8 +579,10 @@ def process_rat(counts_path, outputs_path, gene_lengths_df=None, gene_mapings=No
                 continue
 
             mirna_output_table = pd.merge(mirna_output_table, df_mirna, left_on='mirna_ensamble_id', right_on='gene_id', how='left')
+            mirna_output_table = mirna_output_table.drop(columns=['gene_id'])
             rna_output_table = pd.merge(rna_output_table, df_rna, left_on='target_ensemble_id', right_on='gene_id', how='left')
-            
+            rna_output_table = rna_output_table.drop(columns=['gene_id'])
+
     mirna_output_table.to_csv(os.path.join(outputs_path, 'mirna_rat.csv'), sep='\t', index=False)
     rna_output_table.to_csv(os.path.join(outputs_path, 'rna_rat.csv'), sep='\t', index=False)
     rna_kallisto.to_csv(os.path.join(outputs_path, 'rna_kallisto_rat.csv'), sep='\t', index=False)
