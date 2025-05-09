@@ -330,26 +330,21 @@ def process_complex_directory(directory_path, tool_type, transcript_gene_mapping
                     df = process_kallisto(filepath)
             if not df.empty:
                 if transcript_gene_mappings is not None:
-                    print(df.head(2))
+                    print(df.head())
+                    print(transcript_gene_mappings.head())
                     df = df.merge(transcript_gene_mappings, left_on="gene_id", right_on="transcript_id", how="left")
-                    print(df.head(2))
                     df["gene_id"] = df["gene_id_y"]  # use mapped gene_id
-                    print(df.head(2))
                     df = df.drop(["transcript_id", "gene_id_x", "gene_id_y"], axis=1)
 
                     # Aggregate if needed (many transcripts -> one gene)
                     agg_columns = [col for col in df.columns if col != "gene_id"]
                     df = df.groupby("gene_id")[agg_columns].sum().reset_index()
-                    print(df.head(2))
                 df = df.rename(columns={"TPM": f'{tool_type}_{subdir}'})
                 all_dataframes.append(df)
-                print(df.head(2))
-                print('\n \n')
     if all_dataframes:
         result_df = all_dataframes[0]
         for df in all_dataframes[1:]:
             result_df = pd.merge(result_df, df, on="gene_id", how="outer")
-        print(result_df.head())
         return result_df
     else:
         return pd.DataFrame(columns=['gene_id'])  # Return an empty DataFrame if no files were processed
