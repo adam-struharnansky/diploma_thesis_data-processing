@@ -48,6 +48,8 @@ def get_transcript_gene_mapping(filepath):
             if gene_id and transcript_id:
                 mapping.append((transcript_id, gene_id))
     mapping_df = pd.DataFrame(mapping, columns=["transcript_id", "gene_id"])
+    mapping_df['gene_id'] = mapping_df["gene_id"].apply(strip_version)
+    mapping_df['transcript_id'] = mapping_df["transcript_id"].apply(strip_version)
     return mapping_df
 
 
@@ -330,12 +332,9 @@ def process_complex_directory(directory_path, tool_type, transcript_gene_mapping
                     df = process_kallisto(filepath)
             if not df.empty:
                 if transcript_gene_mappings is not None:
-                    print(df.head())
-                    print(transcript_gene_mappings.head())
                     df = df.merge(transcript_gene_mappings, left_on="gene_id", right_on="transcript_id", how="left")
                     df["gene_id"] = df["gene_id_y"]  # use mapped gene_id
                     df = df.drop(["transcript_id", "gene_id_x", "gene_id_y"], axis=1)
-
                     # Aggregate if needed (many transcripts -> one gene)
                     agg_columns = [col for col in df.columns if col != "gene_id"]
                     df = df.groupby("gene_id")[agg_columns].sum().reset_index()
@@ -596,6 +595,7 @@ if __name__ == "__main__":
     #mus_musculus_mappings = get_transcript_gene_mapping('genetic_data/annotations/Mus_musculus.GRCm38.102.gtf')
     homo_sapiens_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/gencode.v19.annotation.gtf')
     homo_sapines_mappings = get_transcript_gene_mapping('genetic_data/annotations/gencode.v19.annotation.gtf')
+    print(homo_sapines_mappings)
     #rattus_norvegicus_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/Rattus_norvegicus.Rnor_5.0.77.gtf')
     #rattus_norvegicus_mappings = get_transcript_gene_mapping('genetic_data/annotations/Rattus_norvegicus.Rnor_5.0.77.gtf')
     process_seqcA(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts, transcript_gene_mappings=homo_sapines_mappings)
