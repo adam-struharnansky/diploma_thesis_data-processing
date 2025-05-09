@@ -18,12 +18,12 @@ cd ..
 ./genetic_data/scripts//set_bilattice_count.sh
 
 # Download all the reads
-./genetic_data/reads/seqcB/clean_seqcB_data.sh
 ./genetic_data/reads/seqcB/get_seqcB_data.sh
+./genetic_data/reads/seqcB/clean_seqcB_data.sh
 ./genetic_data/reads/beers_all_bias/get_BEERS_reads.sh
 ./genetic_data/reads/rat/get_rat_data.sh
-./genetic_data/reads/seqcA/clean_seqA_data.sh
 ./genetic_data/reads/seqcA/get_seqcA_data.sh
+./genetic_data/reads/seqcA/clean_seqA_data.sh
 
 # Downlaod all the genomes
 ./genetic_data/genomes/get_homo_sapiens_genome.sh
@@ -122,5 +122,7 @@ cd ..
 ./genetic_data/counts/star_featureCounts_rat/run_star_featureCounts_rat.sh
 
 # Transform the outputs
+./genetic_data/outputs/get_rt_pcr_data.sh
+./genetic_data/outputs/get_beers_ground_truth.sh
 conda activate bilattice_env
 python genetic_data/outputs/transform_counts.py
