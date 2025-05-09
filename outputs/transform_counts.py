@@ -104,8 +104,8 @@ def get_gene_lengths_from_gtf(filepath):
                 merged[-1][1] = max(merged[-1][1], end)
         total_length = sum(end - start + 1 for start, end in merged)
         gene_lengths.append((gene_id, total_length))
-    df = df["gene_id"].apply(strip_version)
     df = pd.DataFrame(gene_lengths, columns=['gene_id', 'gene_length'])
+    df = df["gene_id"].apply(strip_version)
     return df
 
 
