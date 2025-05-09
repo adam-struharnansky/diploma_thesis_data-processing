@@ -380,7 +380,7 @@ def process_seqcA(counts_path, outputs_path, gene_lengths_df=None, transcript_ge
                 df_dir = process_complex_directory(dir_path, 'kallisto', transcript_gene_mappings=transcript_gene_mappings)
             elif 'salmon' in dir_name:
                 df_dir = process_complex_directory(dir_path, 'salmon', transcript_gene_mappings=transcript_gene_mappings)
-
+            print(df_dir.head())
             # Merging the processed data with the main dataframe
             df = pd.merge(df, df_dir, on="gene_id", how="left")
     df.to_csv(os.path.join(outputs_path, 'seqcA.csv'), index=False)
