@@ -189,6 +189,7 @@ def process_kallisto(filepath):
     gene_data = df.groupby('gene_id')['tpm'].sum().reset_index()
     gene_data.rename(columns={'tpm': 'TPM'}, inplace=True)
     gene_data['gene_id'] = gene_data['gene_id'].apply(strip_version)
+    print(gene_data)
     return gene_data
 
 
