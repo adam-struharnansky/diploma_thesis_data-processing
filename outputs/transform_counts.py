@@ -331,7 +331,7 @@ def process_complex_directory(directory_path, tool_type, transcript_gene_mapping
                 if os.path.exists(filepath):
                     df = process_kallisto(filepath)
             if not df.empty:
-                if transcript_gene_mappings is not None and tool_type = 'salmon':
+                if transcript_gene_mappings is not None and tool_type == 'salmon':
                     df = df.merge(transcript_gene_mappings, left_on="gene_id", right_on="transcript_id", how="left")
                     df["gene_id"] = df["gene_id_y"]  # use mapped gene_id
                     df = df.drop(["transcript_id", "gene_id_x", "gene_id_y"], axis=1)
