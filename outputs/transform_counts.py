@@ -147,11 +147,8 @@ def process_htseq(filepath, gene_lengths_df):
     df = df[~df["gene_id"].str.startswith("__")]
     df['gene_id'] = df['gene_id'].apply(strip_version)
     df['counts'] = pd.to_numeric(df['counts'], errors='coerce')
-    print(df.head())
-    print(gene_lengths_df.head())
     merged = pd.merge(df, gene_lengths_df, on='gene_id', how='inner') # Merging with lengths
     merged["TPM"] = (merged["counts"] / merged["gene_length"]) / (merged["counts"] / merged["gene_length"]).sum() * 1e6 # TPM calculation
-    print(merged[["gene_id", "TPM"]].head())
     return merged[["gene_id", "TPM"]]
 
 
@@ -188,6 +185,7 @@ def process_kallisto(filepath):
 
     df = pd.read_csv(filepath, sep="\t")
     df['gene_id'] = df['target_id'].apply(lambda x: x.split('|')[1] if '|' in x and len(x.split('|')) > 1 else x) # transcript_id extraction
+    print(df)
     gene_data = df.groupby('gene_id')['tpm'].sum().reset_index()
     gene_data.rename(columns={'tpm': 'TPM'}, inplace=True)
     gene_data['gene_id'] = gene_data['gene_id'].apply(strip_version)
