@@ -149,6 +149,7 @@ def process_htseq(filepath, gene_lengths_df):
     df['counts'] = pd.to_numeric(df['counts'], errors='coerce')
     merged = pd.merge(df, gene_lengths_df, on='gene_id', how='inner') # Merging with lengths
     merged["TPM"] = (merged["counts"] / merged["gene_length"]) / (merged["counts"] / merged["gene_length"]).sum() * 1e6 # TPM calculation
+    print(merged[["gene_id", "TPM"]].head())
     return merged[["gene_id", "TPM"]]
 
 
