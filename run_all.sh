@@ -42,5 +42,85 @@ cd ..
 ./genetic_data/annotations/get_mus_musculus_annotation.sh
 ./genetic_data/annotations/create_mirna_rattus_norvegicus_annotation.sh
 
-alignments  counts   indexes
-annotations   outputs  
+# Create all the indexes
+./genetic_data/indexes/bowtie2_index_homo_sapiens/create_bowtie2_index_homo_sapiens.sh
+./genetic_data/indexes/kallisto_index_mus_musculus/create_kallisto_index_mus_musculus.sh
+./genetic_data/indexes/salmon_index_mus_musculus/create_salmon_index_mus_musculus.sh
+./genetic_data/indexes/bowtie2_index_mus_musculus/create_bowtie2_index_mus_musculus.sh
+./genetic_data/indexes/salmon_index_homo_sapiens/create_salmon_index_homo_sapiens.sh
+./genetic_data/indexes/kallisto_index_homo_sapiens/create_kallisto_index_homo_sapiens.sh
+./genetic_data/indexes/bowtie2_index_rattus_norvegicus/create_bowtie2_index_rattus_norvegicus.sh
+./genetic_data/indexes/star_index_mus_musculus/create_star_index_mus_musculus.sh
+./genetic_data/indexes/star_index_homo_sapiens/create_star_index_homo_sapiens.sh
+./genetic_data/indexes/kallisto_index_rattus_norvegicus/create_kallisto_index-rattus_norvegicus.sh
+./genetic_data/indexes/star_index_rattus_norvegicus/create_star_index_rattus_norvegicus.sh
+
+# Create all the alignments
+./genetic_data/alignments/bowtie2_seqcA_all/run_bowtie2_seqcA_all.sh
+./genetic_data/alignments/bowtie2_seqcB_all/run_bowtie2_seqcB_all.sh
+./genetic_data/alignments/star_rat_all/run_star_rat_all.sh
+./genetic_data/alignments/star_seqcB_all/run_star_seqcB_all.sh
+./genetic_data/alignments/star_beers_all_bias_all/run_star_beers_all_bias_all.sh
+./genetic_data/alignments/star_seqcA_all/run_star_seqcA_all.sh
+./genetic_data/alignments/bowtie2_beers_all_bias_all/run_bowtie2_beers_all_bias_all.sh
+./genetic_data/alignments/bowtie2_rat_all/run_bowtie2_rat_all.sh./genetic_data/alignments/bowtie2_seqcA_all/run_bowtie2_seqcA_all.sh
+./genetic_data/alignments/bowtie2_seqcB_all/run_bowtie2_seqcB_all.sh
+./genetic_data/alignments/star_rat_all/run_star_rat_all.sh
+./genetic_data/alignments/star_seqcB_all/run_star_seqcB_all.sh
+./genetic_data/alignments/star_beers_all_bias_all/run_star_beers_all_bias_all.sh
+./genetic_data/alignments/star_seqcA_all/run_star_seqcA_all.sh
+./genetic_data/alignments/bowtie2_beers_all_bias_all/run_bowtie2_beers_all_bias_all.sh
+./genetic_data/alignments/bowtie2_rat_all/run_bowtie2_rat_all.sh
+
+# Compute all the counts
+./genetic_data/counts/star_featureCounts_all_seqcA/run_star_featureCounts_all_seqcA.sh
+./genetic_data/counts/star_bilatticeCount_rat/run_star_bilatticeCount_rat.sh
+./genetic_data/counts/star_bilatticeCount_rat/run_star_bilatticeCount_rat_schweizer.sh
+./genetic_data/counts/star_bilatticeCount_rat/run_star_bilatticeCount_rat_hamacher.sh
+./genetic_data/counts/salmon_beers_all_bias/run_salmon_beers_all_bias.sh
+./genetic_data/counts/bowtie2_featureCounts_all_seqcA/run_bowtie2_featureCounts_all_seqcA.sh
+./genetic_data/counts/star_HTSeq_all_seqcA/run_star_HTSeq_all_seqcA.sh
+./genetic_data/counts/salmon_seqcB/run_salmon_seqcB.sh
+./genetic_data/counts/kallisto_seqcA/run_kallisto_seqcA.sh
+./genetic_data/counts/kallisto_seqcB/run_kallisto_seqcB.sh
+./genetic_data/counts/bowtie2_HTSeq_all_seqcA/run_bowtie2_HTSeq_all_seqcA.sh
+./genetic_data/counts/salmon_seqcA/run_salmon_seqcA.sh
+./genetic_data/counts/star_HTSeq_beers_all_bias/run_star_HTSeq_beers_all_bias.sh
+./genetic_data/counts/star_HTSeq_rat/run_star_HTSeq_rat.sh
+./genetic_data/counts/bowtie2_bilatticeCount_beers_all_bias/run_bowtie2_bilatticeCount_beers_all_bias_schwarzer.sh
+./genetic_data/counts/bowtie2_bilatticeCount_beers_all_bias/run_bowtie2_bilatticeCount_beers_all_bias.sh
+./genetic_data/counts/bowtie2_bilatticeCount_beers_all_bias/run_bowtie2_bilatticeCount_beers_all_bias_hamacher.sh
+./genetic_data/counts/bowtie2_bilatticeCount_all_seqcB/run_bowtie2_bilatticeCount_all_seqcB_hamacher.sh
+./genetic_data/counts/bowtie2_bilatticeCount_all_seqcB/run_bowtie2_bilatticeCount_all_seqcB_schwarzer.sh
+./genetic_data/counts/bowtie2_bilatticeCount_all_seqcB/run_bowtie2_bilatticeCount_all_seqcB.sh
+./genetic_data/counts/kallisto_beers_all_bias/run_kallisto_beers_all_bias.sh
+./genetic_data/counts/bowtie2_featureCounts_rat/run_bowtie2_featureCounts_rat.sh
+./genetic_data/counts/star_bilatticeCount_all_seqcA/run_star_bilatticeCount_all_seqcA_schwarzer.sh
+./genetic_data/counts/star_bilatticeCount_all_seqcA/run_star_bilatticeCount_all_seqcA.sh
+./genetic_data/counts/star_bilatticeCount_all_seqcA/run_star_bilatticeCount_all_seqcA_hamacher.sh
+./genetic_data/counts/bowtie2_bilatticeCount_all_seqcA/run_bowtie2_bilatticeCount_all_seqcA_hamacher.sh
+./genetic_data/counts/bowtie2_bilatticeCount_all_seqcA/run_bowtie2_bilatticeCount_all_seqcA.sh
+./genetic_data/counts/bowtie2_bilatticeCount_all_seqcA/run_bowtie2_bilatticeCount_all_seqcA_schwarzer.sh
+./genetic_data/counts/bowtie2_HTSeq_beers_all_bias/run_bowtie2_HTSeq_beers_all_bias.sh
+./genetic_data/counts/bowtie2_HTSeq_all_seqcB/run_bowtie2_HTSeq_all_seqcB.sh
+./genetic_data/counts/star_HTSeq_all_seqcB/run_star_HTSeq_all_seqcB.sh
+./genetic_data/counts/bowtie2_HTSeq_rat/run_bowtie2_HTSeq_rat.sh
+./genetic_data/counts/kallisto_rat/run_kallisto_rat.sh
+./genetic_data/counts/star_bilatticeCount_all_seqcB/run_star_bilatticeCount_all_seqcB.sh
+./genetic_data/counts/star_bilatticeCount_all_seqcB/run_star_bilatticeCount_all_seqcB_hamacher.sh
+./genetic_data/counts/star_bilatticeCount_all_seqcB/run_star_bilatticeCount_all_seqcB_schwarzer.sh
+./genetic_data/counts/bowtie2_bilatticeCount_rat/run_bowtie2_bilatticeCount_rat.sh
+./genetic_data/counts/bowtie2_bilatticeCount_rat/run_bowtie2_bilatticeCount_rat_schweizer.sh
+./genetic_data/counts/bowtie2_bilatticeCount_rat/run_bowtie2_bilatticeCount_rat_hamacher.sh
+./genetic_data/counts/star_featureCounts_all_seqcB/run_star_featureCounts_all_seqcB.sh
+./genetic_data/counts/star_bilatticeCount_beers_all_bias/run_star_bilatticeCount_beers_all_bias.sh
+./genetic_data/counts/star_bilatticeCount_beers_all_bias/run_star_bilatticeCount_beers_all_bias_hamacher.sh
+./genetic_data/counts/star_bilatticeCount_beers_all_bias/run_star_bilatticeCount_beers_all_bias_schwarzer.sh
+./genetic_data/counts/star_featureCounts_beers_all_bias/run_star_featureCounts_beers_all_bias.sh
+./genetic_data/counts/bowtie2_featureCounts_all_seqcB/run_bowtie2_featureCounts_all_seqcB.sh
+./genetic_data/counts/bowtie2_featureCounts_beers_all_bias/run_bowtie2_featureCounts_beers_all_bias.sh
+./genetic_data/counts/star_featureCounts_rat/run_star_featureCounts_rat.sh
+
+# Transform the outputs
+conda activate bilattice_env
+python genetic_data/outputs/transform_counts.py

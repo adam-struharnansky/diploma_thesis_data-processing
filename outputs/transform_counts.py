@@ -339,11 +339,12 @@ def process_complex_directory(directory_path, tool_type, transcript_gene_mapping
                     df = df.groupby("gene_id")[agg_columns].sum().reset_index()
                 df = df.rename(columns={"TPM": f'{tool_type}_{subdir}'})
                 all_dataframes.append(df)
-    print(len(all_dataframes))
+                print(df.head(2))
     if all_dataframes:
         result_df = all_dataframes[0]
         for df in all_dataframes[1:]:
             result_df = pd.merge(result_df, df, on="gene_id", how="outer")
+        print(result_df.head())
         return result_df
     else:
         return pd.DataFrame(columns=['gene_id'])  # Return an empty DataFrame if no files were processed
