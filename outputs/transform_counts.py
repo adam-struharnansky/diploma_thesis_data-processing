@@ -190,6 +190,7 @@ def process_kallisto(filepath):
     gene_data = df.groupby('gene_id')['tpm'].sum().reset_index()
     gene_data.rename(columns={'tpm': 'TPM'}, inplace=True)
     gene_data['gene_id'] = gene_data['gene_id'].apply(strip_version)
+    print(gene_data)
     return gene_data
 
 
@@ -595,7 +596,6 @@ if __name__ == "__main__":
     #mus_musculus_mappings = get_transcript_gene_mapping('genetic_data/annotations/Mus_musculus.GRCm38.102.gtf')
     homo_sapiens_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/gencode.v19.annotation.gtf')
     homo_sapines_mappings = get_transcript_gene_mapping('genetic_data/annotations/gencode.v19.annotation.gtf')
-    print(homo_sapines_mappings)
     #rattus_norvegicus_gene_lenghts = get_gene_lengths_from_gtf('genetic_data/annotations/Rattus_norvegicus.Rnor_5.0.77.gtf')
     #rattus_norvegicus_mappings = get_transcript_gene_mapping('genetic_data/annotations/Rattus_norvegicus.Rnor_5.0.77.gtf')
     process_seqcA(counts_path, outputs_path, gene_lengths_df=homo_sapiens_gene_lenghts, transcript_gene_mappings=homo_sapines_mappings)
